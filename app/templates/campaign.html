@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}{{ campaign.name }}{% endblock %}
+{% block content %}
+
+{% set opens = events | selectattr('type.value','equalto','open') | list | length %}
+{% set human = events | selectattr('type.value','equalto','click')
+                       | selectattr('verdict.value','equalto','human') | list | length %}
+{% set scanner = events | selectattr('type.value','equalto','click')
+                         | selectattr('verdict.value','equalto','scanner') | list | length %}
+{% set unknownc = events | selectattr('type.value','equalto','click')
+                          | selectattr('verdict.value','equalto','unknown') | list | length %}
+{% set reports = events | selectattr('type.value','equalto','report') | list | length %}
+
+<p style="margin-top:0"><a href="/phishing" style="color:var(--muted)">← All campaigns</a></p>
+
+<div class="card">
+  <h2>{{ campaign.name }}</h2>
+  <div class="grid4">
+    <div><div class="metric">{{ opens }}<small>Opens</small></div></div>
+    <div><div class="metric" style="color:var(--green)">{{ human }}<small>Human clicks</small></div></div>
+    <div><div class="metric" style="color:var(--red)">{{ scanner }}<small>Scanner clicks</small></div></div>
+    <div><div class="metric" style="color:var(--muted)">{{ unknownc }}<small>Unclassified</small></div></div>
+    <div><div class="metric" style="color:var(--blue)">{{ reports }}<small>Reported</small></div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Recipients</h2>
+
+  {% if groups %}
+  <form method="post" action="/campaigns/{{ campaign.id }}/targets_group"
+        style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+    <span style="color:var(--muted);font-size:13px">Add everyone in a group:</span>
+    <select name="group_id" style="background:#0b1220;border:1px solid var(--line);color:var(--ink);padding:8px 10px;border-radius:6px">
+      {% for g in groups %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="ghost">Add group</button>
+  </form>
+  {% endif %}
+
+  {% if available_users %}
+  <form method="post" action="/campaigns/{{ campaign.id }}/targets">
+    <label>…or pick individuals (consenting users only can be sent to)</label>
+    <div style="max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:8px;margin:8px 0 12px">
+    <table>
+      <tr><th style="width:30px"></th><th>Name</th><th>Email</th><th>Dept</th><th>Consented</th></tr>
+      {% for u in available_users %}
+      <tr>
+        <td><input type="checkbox" name="user_ids" value="{{ u.id }}" {{ 'disabled' if not u.consented }}></td>
+        <td>{{ u.name or '—' }}</td>
+        <td>{{ u.email }}</td>
+        <td>{{ u.department or '—' }}</td>
+        <td>{% if u.consented %}<span class="pill human">yes</span>{% else %}<span class="pill scanner">no</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+    <button type="submit" class="ghost">Add selected</button>
+  </form>
+  {% else %}
+  <p style="color:var(--muted)">All users are already added, or there are none yet —
+     add people in the <a href="/users">Users</a> tab.</p>
+  {% endif %}
+
+  {% if targets %}
+  <table style="margin-top:14px">
+    <tr><th>Name</th><th>Email</th><th>Click URL (for manual testing)</th></tr>
+    {% for t in targets %}
+    <tr>
+      <td>{{ t.name or '—' }}</td>
+      <td>{{ t.email }}</td>
+      <td><code>/t/click/{{ t.token }}</code></td>
+    </tr>
+    {% endfor %}
+  </table>
+  <form method="post" action="/campaigns/{{ campaign.id }}/send" style="margin-top:14px">
+    <button type="submit">
+      {% if dry_run %}Send drill (DRY-RUN → console){% else %}Send drill emails{% endif %}
+    </button>
+  </form>
+  {% else %}
+  <p style="color:var(--muted);margin-top:10px">Add at least one recipient before sending.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Evidence log — every click, with the proof</h2>
+  <p style="color:var(--muted);font-size:13px;margin-top:-6px">
+    Raw IP + User-Agent + timing kept for every event. This is what turns a result
+    from "trust us" into evidence when someone disputes a click.</p>
+  {% if events %}
+  <table>
+    <tr><th>When (UTC)</th><th>Recipient</th><th>Type</th><th>Verdict</th>
+        <th>Why</th><th>IP</th><th>User-Agent</th><th>Δt</th></tr>
+    {% for e in events %}
+    <tr>
+      <td>{{ e.created_at.strftime('%m-%d %H:%M:%S') }}</td>
+      <td>{{ (target_by_id.get(e.target_id).email) if target_by_id.get(e.target_id) else e.target_id }}</td>
+      <td>{{ e.type.value }}</td>
+      <td><span class="pill {{ e.verdict.value }}">{{ e.verdict.value }}</span></td>
+      <td style="max-width:240px">{{ e.reason }}</td>
+      <td><code>{{ e.ip }}</code></td>
+      <td><code>{{ (e.user_agent[:48] ~ '…') if e.user_agent|length > 48 else e.user_agent }}</code></td>
+      <td>{{ ('%.1fs' % e.seconds_since_send) if e.seconds_since_send is not none else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:var(--muted)">No events yet. Send the drill, then open a recipient's click URL.</p>
+  {% endif %}
+</div>
+
+{% endblock %}

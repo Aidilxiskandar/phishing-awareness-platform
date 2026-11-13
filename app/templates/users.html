@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>Quick fill</h2>
+  <p style="color:var(--muted);font-size:13px;margin-top:-6px">
+    Generate a batch of realistic random staff (names, emails, departments) for
+    testing. A random slice is auto-added to the example groups below.</p>
+  <form method="post" action="/users/seed" style="display:flex;gap:10px;align-items:flex-end">
+    <div style="max-width:140px"><label>How many</label>
+      <input type="text" name="count" value="300"></div>
+    <button type="submit">Generate staff</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Groups</h2>
+  <form method="post" action="/groups">
+    <div class="row">
+      <div><label>Group name</label>
+        <input type="text" name="name" placeholder="e.g. New staff, Failed phishing - Nov" required></div>
+      <div><label>Description (optional)</label>
+        <input type="text" name="description" placeholder="What this group is for"></div>
+    </div>
+    <button type="submit" class="ghost">Create group</button>
+  </form>
+
+  {% if group_rows %}
+  <table style="margin-top:14px">
+    <tr><th>Group</th><th>Description</th><th>Members</th><th></th></tr>
+    {% for r in group_rows %}
+    <tr>
+      <td><strong>{{ r.g.name }}</strong></td>
+      <td style="color:var(--muted)">{{ r.g.description or '—' }}</td>
+      <td>{{ r.count }}</td>
+      <td><a href="/users?group={{ r.g.id }}">View members →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:var(--muted);margin-top:10px">No groups yet. Create one above.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Add a single user</h2>
+  <form method="post" action="/users">
+    <div class="row">
+      <div><label>Full name</label><input type="text" name="name" placeholder="Alice Tan"></div>
+      <div><label>Email</label><input type="email" name="email" placeholder="alice@example.com" required></div>
+    </div>
+    <div class="row">
+      <div><label>Department</label><input type="text" name="department" placeholder="Finance"></div>
+      <div style="display:flex;align-items:flex-end;gap:8px;padding-bottom:9px">
+        <input type="checkbox" name="consented" id="consented" checked>
+        <label for="consented" style="margin:0">Consented / authorised to be included in drills</label>
+      </div>
+    </div>
+    <button type="submit">Add user</button>
+  </form>
+  <p style="color:var(--muted);font-size:13px;margin-top:10px">
+    Ethics gate: only users marked as consenting can be sent a drill. The sender
+    refuses anyone else.</p>
+</div>
+
+<div class="card">
+  <h2>
+    User directory
+    {% if active_group %}
+      <span class="pill report">filtered: {{ active_group.name }}</span>
+      <a href="/users" style="font-size:13px;margin-left:6px">clear</a>
+    {% endif %}
+    <span style="color:var(--muted);font-weight:400;font-size:13px"> · {{ total_users }} shown</span>
+  </h2>
+
+  {% if users %}
+  <form method="post" action="/users/assign">
+    {% if groups %}
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <span style="color:var(--muted);font-size:13px">Assign checked users to:</span>
+      <select name="group_id" style="background:#0b1220;border:1px solid var(--line);color:var(--ink);padding:8px 10px;border-radius:6px">
+        {% for g in groups %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
+      </select>
+      <button type="submit" class="ghost">Assign</button>
+    </div>
+    {% endif %}
+    <div style="max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:8px">
+    <table>
+      <tr><th style="width:30px"></th><th>Name</th><th>Email</th><th>Department</th>
+          <th>Consented</th><th>Groups</th></tr>
+      {% for u in users %}
+      <tr>
+        <td><input type="checkbox" name="user_ids" value="{{ u.id }}"></td>
+        <td>{{ u.name or '—' }}</td>
+        <td>{{ u.email }}</td>
+        <td>{{ u.department or '—' }}</td>
+        <td>{% if u.consented %}<span class="pill human">yes</span>{% else %}<span class="pill scanner">no</span>{% endif %}</td>
+        <td>
+          {% for gname in groups_by_user.get(u.id, []) %}
+            <span class="pill unknown" style="margin:1px">{{ gname }}</span>
+          {% else %}<span style="color:var(--muted)">—</span>{% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+  </form>
+  {% else %}
+  <p style="color:var(--muted)">
+    {% if active_group %}No one is in this group yet.{% else %}No users yet. Use “Generate staff” or add one above.{% endif %}</p>
+  {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ module.title }}{% endblock %}
+{% block content %}
+
+<p style="margin-top:0"><a href="/training" style="color:var(--muted)">← All modules</a></p>
+
+<div class="card">
+  <h2>{{ module.title }}</h2>
+  <p style="color:var(--muted);margin-top:-6px">{{ module.summary }}</p>
+  <ul style="line-height:1.8;color:#cbd5e1">
+    {% for b in bullets %}<li>{{ b }}</li>{% endfor %}
+  </ul>
+</div>
+
+{% if result %}
+<div class="card">
+  <h2>Your result</h2>
+  {% if result.score == result.total %}
+    <p class="metric" style="color:var(--green)">{{ result.score }}/{{ result.total }} — perfect 🎉</p>
+    <p style="color:var(--muted)">You've got the key signals down. Nicely done.</p>
+  {% else %}
+    <p class="metric" style="color:var(--amber)">{{ result.score }}/{{ result.total }}</p>
+    <p style="color:var(--muted)">Worth a re-read of the points above, then try again.</p>
+  {% endif %}
+  <a class="btn" href="/training/{{ module.slug }}{{ ('?token=' ~ token) if token }}">Retake quiz</a>
+</div>
+{% else %}
+<div class="card">
+  <h2>Quick quiz</h2>
+  <form method="post" action="/training/{{ module.slug }}/quiz">
+    <input type="hidden" name="token" value="{{ token }}">
+    {% for q in questions %}
+    <div style="margin-bottom:18px">
+      <p style="font-weight:600;margin:0 0 8px">{{ loop.index }}. {{ q.prompt }}</p>
+      {% for choice in q.choices %}
+      <label style="display:block;margin:4px 0;color:#cbd5e1;cursor:pointer">
+        <input type="radio" name="q{{ q.id }}" value="{{ loop.index0 }}" required>
+        {{ choice }}
+      </label>
+      {% endfor %}
+    </div>
+    {% endfor %}
+    <button type="submit">Submit answers</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

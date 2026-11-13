@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>Security awareness training</h2>
+  <div class="grid4">
+    <div><div class="metric">{{ modules|length }}<small>Modules</small></div></div>
+    <div><div class="metric" style="color:var(--blue)">{{ done }}<small>Quizzes taken</small></div></div>
+    <div><div class="metric" style="color:var(--green)">{{ passed }}<small>Perfect scores</small></div></div>
+  </div>
+  <p style="color:var(--muted);font-size:13px;margin-top:12px">
+    These are the micro-lessons shown after someone clicks a simulated phish — but
+    anyone can take them any time.</p>
+</div>
+
+<div class="card">
+  <h2>Modules</h2>
+  <table>
+    <tr><th>Title</th><th>What it covers</th><th></th></tr>
+    {% for m in modules %}
+    <tr>
+      <td><strong>{{ m.title }}</strong></td>
+      <td style="color:var(--muted)">{{ m.summary }}</td>
+      <td><a href="/training/{{ m.slug }}">Start →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Recent completions</h2>
+  {% if results %}
+  <table>
+    <tr><th>When (UTC)</th><th>Module</th><th>Score</th></tr>
+    {% for r in results %}
+    <tr>
+      <td>{{ r.created_at.strftime('%m-%d %H:%M') }}</td>
+      <td>{{ module_by_id.get(r.module_id).title if module_by_id.get(r.module_id) else r.module_id }}</td>
+      <td>
+        {% if r.total and r.score == r.total %}<span class="pill human">{{ r.score }}/{{ r.total }}</span>
+        {% else %}<span class="pill unknown">{{ r.score }}/{{ r.total }}</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:var(--muted)">No one has taken a quiz yet.</p>
+  {% endif %}
+</div>
+
+{% endblock %}

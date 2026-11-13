@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>New campaign</h2>
+  <form method="post" action="/campaigns">
+    <div class="row">
+      <div><label>Campaign name</label>
+        <input type="text" name="name" placeholder="Q1 new-joiner drill" required></div>
+      <div><label>Email subject</label>
+        <input type="text" name="subject" value="Action required: verify your account" required></div>
+    </div>
+    <div class="row">
+      <div><label>From name</label>
+        <input type="text" name="from_name" value="IT Security" required></div>
+      <div><label>From email</label>
+        <input type="email" name="from_email" value="it-security@example.com" required></div>
+    </div>
+    <button type="submit">Create campaign</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Campaigns</h2>
+  {% if not rows %}
+    <p style="color:var(--muted)">No campaigns yet. Create one above.</p>
+  {% else %}
+  <table>
+    <tr><th>Name</th><th>Status</th><th>Targets</th><th>Opens</th>
+        <th>Human clicks</th><th>Scanner clicks</th><th>Reported</th><th></th></tr>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.c.name }}</td>
+      <td><span class="pill unknown">{{ r.c.status.value }}</span></td>
+      <td>{{ r.targets }}</td>
+      <td>{{ r.opens }}</td>
+      <td><span class="pill human">{{ r.human_clicks }}</span></td>
+      <td><span class="pill scanner">{{ r.scanner_clicks }}</span></td>
+      <td><span class="pill report">{{ r.reports }}</span></td>
+      <td><a href="/campaigns/{{ r.c.id }}">Open →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+
+{% endblock %}

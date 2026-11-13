@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>Overview</h2>
+  <div class="grid4">
+    <div><div class="metric">{{ stats.users }}<small>Users</small></div></div>
+    <div><div class="metric">{{ stats.campaigns }}<small>Campaigns</small></div></div>
+    <div><div class="metric">{{ stats.sent }}<small>Emails sent</small></div></div>
+    <div><div class="metric" style="color:var(--amber)">{{ '%.0f' % stats.click_rate }}%<small>Human click rate</small></div></div>
+    <div><div class="metric" style="color:var(--green)">{{ stats.trainings_done }}<small>Trainings taken</small></div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Click accuracy (all campaigns)</h2>
+  <div class="grid4">
+    <div><div class="metric" style="color:var(--green)">{{ stats.human_clicks }}<small>Human clicks</small></div></div>
+    <div><div class="metric" style="color:var(--red)">{{ stats.scanner_clicks }}<small>Scanner clicks filtered</small></div></div>
+    <div><div class="metric" style="color:var(--blue)">{{ stats.reports }}<small>Reported</small></div></div>
+  </div>
+  <p style="color:var(--muted);font-size:13px;margin-top:12px">
+    Scanner clicks are automated gateway/proxy fetches separated out so they don't
+    inflate the human click count — the core of what this platform does differently.</p>
+</div>
+
+<div class="card">
+  <h2>Recent activity</h2>
+  {% if recent %}
+  <table>
+    <tr><th>When (UTC)</th><th>Recipient</th><th>Type</th><th>Verdict</th><th>Why</th></tr>
+    {% for e in recent %}
+    <tr>
+      <td>{{ e.created_at.strftime('%m-%d %H:%M:%S') }}</td>
+      <td>{{ (target_by_id.get(e.target_id).email) if target_by_id.get(e.target_id) else e.target_id }}</td>
+      <td>{{ e.type.value }}</td>
+      <td><span class="pill {{ e.verdict.value }}">{{ e.verdict.value }}</span></td>
+      <td style="max-width:320px">{{ e.reason }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:var(--muted)">Nothing yet. Add <a href="/users">users</a>, create a
+     <a href="/phishing">campaign</a>, and send a drill.</p>
+  {% endif %}
+</div>
+
+{% endblock %}

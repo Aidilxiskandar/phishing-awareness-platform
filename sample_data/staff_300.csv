@@ -1,0 +1,301 @@
+name,email,department,consented
+Lina Hassan,lina.hassan@example.com,Finance,yes
+Siti Karim,siti.karim@example.com,Information Technology,yes
+Daniel Raman,daniel.raman@example.com,Compliance,yes
+Yee Ling Ismail,yeeling.ismail@example.com,Finance,yes
+Azlan Goh,azlan.goh@example.com,Procurement,yes
+Rizal Pillai,rizal.pillai@example.com,Risk Management,yes
+Zhe Kai Karim,zhekai.karim@example.com,Customer Service,yes
+Aisyah Singh,aisyah.singh@example.com,Corporate Affairs,yes
+Yee Ling Tan,yeeling.tan@example.com,Marketing,yes
+Sarah Tan,sarah.tan@example.com,Operations,yes
+Hana Lim,hana.lim@example.com,Administration,yes
+Adam Menon,adam.menon@example.com,Finance,yes
+Meena Hassan,meena.hassan@example.com,Sales,yes
+Wei Jie Das,weijie.das@example.com,Risk Management,yes
+Xin Yi Ong,xinyi.ong@example.com,Human Resources,yes
+Nurul Nair,nurul.nair@example.com,Human Resources,yes
+Amir Reddy,amir.reddy@example.com,Human Resources,yes
+Jun Hao Zainal,junhao.zainal@example.com,Customer Service,yes
+Xin Yi Ibrahim,xinyi.ibrahim@example.com,Legal,yes
+Izzah Zainal,izzah.zainal@example.com,Internal Audit,no
+Farhan Rahman,farhan.rahman@example.com,Procurement,yes
+Meena Raman,meena.raman@example.com,Human Resources,yes
+Jun Hao Zainal,junhao.zainal2@example.com,Risk Management,yes
+Azlan Nair,azlan.nair@example.com,Legal,yes
+Faiz Karim,faiz.karim@example.com,Administration,yes
+Jia Hui Lee,jiahui.lee@example.com,Marketing,yes
+Kavya Iyer,kavya.iyer@example.com,Internal Audit,yes
+Farhan Chong,farhan.chong@example.com,Sales,yes
+Farhan Ng,farhan.ng@example.com,Information Technology,yes
+Siti Raman,siti.raman@example.com,Compliance,yes
+Marcus Ong,marcus.ong@example.com,Sales,yes
+Hui Ying Lim,huiying.lim@example.com,Human Resources,no
+Zara Goh,zara.goh@example.com,Customer Service,yes
+Faiz Reddy,faiz.reddy@example.com,Operations,yes
+Aiman Menon,aiman.menon@example.com,Risk Management,yes
+Syafiq Lee,syafiq.lee@example.com,Sales,yes
+Priya Goh,priya.goh@example.com,Marketing,no
+Aisyah Nair,aisyah.nair@example.com,Internal Audit,yes
+Meena Singh,meena.singh@example.com,Marketing,yes
+Kai Wen Hassan,kaiwen.hassan@example.com,Marketing,yes
+Priya Abdullah,priya.abdullah@example.com,Internal Audit,yes
+Adam Goh,adam.goh@example.com,Corporate Affairs,yes
+Hana Reddy,hana.reddy@example.com,Risk Management,yes
+Lina Goh,lina.goh@example.com,Procurement,yes
+Xin Yi Singh,xinyi.singh@example.com,Information Technology,yes
+Anand Shah,anand.shah@example.com,Finance,yes
+Divya Abdullah,divya.abdullah@example.com,Operations,no
+Mei Ling Karim,meiling.karim@example.com,Finance,yes
+Kavya Rahman,kavya.rahman@example.com,Operations,yes
+Syafiq Singh,syafiq.singh@example.com,Compliance,yes
+Zara Nair,zara.nair@example.com,Customer Service,no
+Aiman Zainal,aiman.zainal@example.com,Compliance,yes
+Yee Ling Osman,yeeling.osman@example.com,Compliance,yes
+Grace Osman,grace.osman@example.com,Internal Audit,yes
+Izzah Kumar,izzah.kumar@example.com,Legal,yes
+Anand Ng,anand.ng@example.com,Operations,yes
+Syafiq Tan,syafiq.tan@example.com,Finance,yes
+Azlan Ong,azlan.ong@example.com,Human Resources,yes
+Ethan Kumar,ethan.kumar@example.com,Finance,yes
+Nurul Reddy,nurul.reddy@example.com,Legal,yes
+Siti Zainal,siti.zainal@example.com,Risk Management,yes
+Meena Yusof,meena.yusof@example.com,Internal Audit,no
+Kavya Ong,kavya.ong@example.com,Customer Service,yes
+Arjun Menon,arjun.menon@example.com,Sales,yes
+Hana Nair,hana.nair@example.com,Sales,yes
+Zhe Kai Ng,zhekai.ng@example.com,Administration,yes
+Daniel Kumar,daniel.kumar@example.com,Risk Management,yes
+Hui Ying Raman,huiying.raman@example.com,Legal,yes
+Hana Karim,hana.karim@example.com,Human Resources,yes
+Raj Yusof,raj.yusof@example.com,Sales,yes
+Priya Karim,priya.karim@example.com,Administration,no
+Raj Menon,raj.menon@example.com,Administration,yes
+Hana Ismail,hana.ismail@example.com,Risk Management,no
+Aisyah Rahman,aisyah.rahman@example.com,Corporate Affairs,yes
+Aiman Wong,aiman.wong@example.com,Customer Service,yes
+Hui Ying Iyer,huiying.iyer@example.com,Finance,yes
+Aisyah Lee,aisyah.lee@example.com,Marketing,no
+Priya Razak,priya.razak@example.com,Sales,yes
+Chloe Menon,chloe.menon@example.com,Compliance,yes
+Divya Yusof,divya.yusof@example.com,Human Resources,yes
+Faiz Ong,faiz.ong@example.com,Internal Audit,yes
+Marcus Tan,marcus.tan@example.com,Finance,yes
+Arjun Goh,arjun.goh@example.com,Administration,yes
+Faiz Goh,faiz.goh@example.com,Operations,yes
+Syafiq Chan,syafiq.chan@example.com,Operations,yes
+Siti Lee,siti.lee@example.com,Operations,no
+Kavya Karim,kavya.karim@example.com,Procurement,yes
+Sanjay Rahman,sanjay.rahman@example.com,Sales,yes
+Kavya Goh,kavya.goh@example.com,Legal,no
+Liyana Nair,liyana.nair@example.com,Internal Audit,yes
+Adam Lee,adam.lee@example.com,Information Technology,yes
+Mei Ling Ng,meiling.ng@example.com,Legal,no
+Syafiq Abdullah,syafiq.abdullah@example.com,Customer Service,yes
+Kavya Hassan,kavya.hassan@example.com,Operations,yes
+Karthik Zainal,karthik.zainal@example.com,Information Technology,no
+Syafiq Iyer,syafiq.iyer@example.com,Human Resources,yes
+Aiman Ng,aiman.ng@example.com,Administration,yes
+Mei Ling Chan,meiling.chan@example.com,Corporate Affairs,yes
+Aisyah Nair,aisyah.nair2@example.com,Administration,yes
+Izzah Hassan,izzah.hassan@example.com,Information Technology,yes
+Hana Raman,hana.raman@example.com,Compliance,yes
+Wei Jie Chan,weijie.chan@example.com,Human Resources,yes
+Liyana Nair,liyana.nair2@example.com,Risk Management,yes
+Karthik Chong,karthik.chong@example.com,Marketing,no
+Faiz Rahman,faiz.rahman@example.com,Risk Management,yes
+Nadia Ismail,nadia.ismail@example.com,Finance,yes
+Zara Kumar,zara.kumar@example.com,Marketing,yes
+Raj Teoh,raj.teoh@example.com,Internal Audit,yes
+Aisyah Hassan,aisyah.hassan@example.com,Operations,no
+Grace Iyer,grace.iyer@example.com,Information Technology,yes
+Xin Yi Ong,xinyi.ong2@example.com,Compliance,yes
+Zara Ismail,zara.ismail@example.com,Marketing,yes
+Nurul Iyer,nurul.iyer@example.com,Legal,yes
+Siti Nair,siti.nair@example.com,Operations,yes
+Suresh Iyer,suresh.iyer@example.com,Administration,yes
+Sanjay Raman,sanjay.raman@example.com,Information Technology,no
+Siti Reddy,siti.reddy@example.com,Information Technology,no
+Farah Iyer,farah.iyer@example.com,Sales,yes
+Marcus Shah,marcus.shah@example.com,Legal,yes
+Zhe Kai Menon,zhekai.menon@example.com,Risk Management,yes
+Siti Zainal,siti.zainal2@example.com,Information Technology,yes
+Hana Lee,hana.lee@example.com,Administration,yes
+Arjun Karim,arjun.karim@example.com,Human Resources,yes
+Priya Lim,priya.lim@example.com,Marketing,yes
+Azlan Karim,azlan.karim@example.com,Finance,yes
+Hui Ying Tan,huiying.tan@example.com,Marketing,yes
+Nadia Lim,nadia.lim@example.com,Risk Management,yes
+Daniel Das,daniel.das@example.com,Compliance,yes
+Haikal Hassan,haikal.hassan@example.com,Marketing,yes
+Adam Ismail,adam.ismail@example.com,Operations,yes
+Li Wei Raman,liwei.raman@example.com,Corporate Affairs,yes
+Deepa Goh,deepa.goh@example.com,Operations,yes
+Kavya Osman,kavya.osman@example.com,Marketing,yes
+Yee Ling Abdullah,yeeling.abdullah@example.com,Compliance,no
+Meena Nair,meena.nair@example.com,Internal Audit,no
+Marcus Nair,marcus.nair@example.com,Human Resources,yes
+Syafiq Nair,syafiq.nair@example.com,Legal,yes
+Izzah Reddy,izzah.reddy@example.com,Operations,yes
+Mei Ling Goh,meiling.goh@example.com,Marketing,yes
+Jia Hui Lee,jiahui.lee2@example.com,Internal Audit,yes
+Zara Osman,zara.osman@example.com,Sales,yes
+Jun Hao Nair,junhao.nair@example.com,Internal Audit,no
+Sanjay Ong,sanjay.ong@example.com,Marketing,yes
+Aisyah Razak,aisyah.razak@example.com,Marketing,yes
+Vijay Chan,vijay.chan@example.com,Risk Management,yes
+Raj Ng,raj.ng@example.com,Risk Management,yes
+Arjun Menon,arjun.menon2@example.com,Corporate Affairs,yes
+Izzah Rahman,izzah.rahman@example.com,Marketing,yes
+Lina Chan,lina.chan@example.com,Legal,yes
+Sarah Karim,sarah.karim@example.com,Risk Management,yes
+Rizal Yusof,rizal.yusof@example.com,Finance,yes
+Arjun Chan,arjun.chan@example.com,Administration,yes
+Priya Wong,priya.wong@example.com,Risk Management,yes
+Ethan Pillai,ethan.pillai@example.com,Sales,yes
+Siti Yusof,siti.yusof@example.com,Risk Management,yes
+Sarah Reddy,sarah.reddy@example.com,Corporate Affairs,yes
+Yee Ling Karim,yeeling.karim@example.com,Information Technology,yes
+Grace Goh,grace.goh@example.com,Customer Service,yes
+Siti Shah,siti.shah@example.com,Administration,yes
+Zara Menon,zara.menon@example.com,Customer Service,yes
+Suresh Chan,suresh.chan@example.com,Legal,no
+Raj Chan,raj.chan@example.com,Administration,yes
+Karthik Wong,karthik.wong@example.com,Administration,no
+Raj Iyer,raj.iyer@example.com,Information Technology,yes
+Arjun Ng,arjun.ng@example.com,Marketing,yes
+Lina Zainal,lina.zainal@example.com,Corporate Affairs,yes
+Divya Kumar,divya.kumar@example.com,Human Resources,yes
+Syafiq Pillai,syafiq.pillai@example.com,Marketing,yes
+Kai Wen Tan,kaiwen.tan@example.com,Compliance,yes
+Danish Karim,danish.karim@example.com,Sales,yes
+Ethan Osman,ethan.osman@example.com,Operations,yes
+Kai Wen Teoh,kaiwen.teoh@example.com,Customer Service,yes
+Liyana Das,liyana.das@example.com,Sales,yes
+Vijay Pillai,vijay.pillai@example.com,Finance,yes
+Sarah Ong,sarah.ong@example.com,Sales,yes
+Li Wei Razak,liwei.razak@example.com,Corporate Affairs,yes
+Zhe Kai Teoh,zhekai.teoh@example.com,Internal Audit,yes
+Deepa Iyer,deepa.iyer@example.com,Human Resources,yes
+Nadia Wong,nadia.wong@example.com,Customer Service,yes
+Kai Wen Nair,kaiwen.nair@example.com,Risk Management,yes
+Chloe Ibrahim,chloe.ibrahim@example.com,Administration,yes
+Zara Chan,zara.chan@example.com,Compliance,yes
+Hui Ying Ong,huiying.ong@example.com,Procurement,yes
+Amir Kumar,amir.kumar@example.com,Sales,yes
+Priya Ibrahim,priya.ibrahim@example.com,Finance,yes
+Jia Hui Osman,jiahui.osman@example.com,Customer Service,yes
+Sarah Iyer,sarah.iyer@example.com,Sales,yes
+Zhe Kai Zainal,zhekai.zainal@example.com,Administration,yes
+Haikal Raman,haikal.raman@example.com,Compliance,yes
+Li Wei Karim,liwei.karim@example.com,Risk Management,yes
+Farhan Ismail,farhan.ismail@example.com,Corporate Affairs,yes
+Siti Osman,siti.osman@example.com,Administration,yes
+Danish Karim,danish.karim2@example.com,Information Technology,yes
+Iman Ong,iman.ong@example.com,Human Resources,yes
+Adam Singh,adam.singh@example.com,Legal,yes
+Deepa Raman,deepa.raman@example.com,Internal Audit,yes
+Aiman Razak,aiman.razak@example.com,Operations,yes
+Mei Ling Ong,meiling.ong@example.com,Risk Management,no
+Jun Hao Lee,junhao.lee@example.com,Internal Audit,yes
+Vijay Pillai,vijay.pillai2@example.com,Administration,yes
+Hana Pillai,hana.pillai@example.com,Corporate Affairs,yes
+Daniel Chan,daniel.chan@example.com,Corporate Affairs,yes
+Kavya Menon,kavya.menon@example.com,Finance,yes
+Yee Ling Nair,yeeling.nair@example.com,Legal,yes
+Farhan Tan,farhan.tan@example.com,Finance,yes
+Divya Hassan,divya.hassan@example.com,Sales,no
+Lina Iyer,lina.iyer@example.com,Administration,yes
+Danish Wong,danish.wong@example.com,Information Technology,yes
+Farhan Zainal,farhan.zainal@example.com,Procurement,yes
+Meena Singh,meena.singh2@example.com,Customer Service,yes
+Chloe Ong,chloe.ong@example.com,Marketing,yes
+Siti Das,siti.das@example.com,Operations,yes
+Raj Karim,raj.karim@example.com,Corporate Affairs,yes
+Sanjay Nair,sanjay.nair@example.com,Sales,yes
+Divya Reddy,divya.reddy@example.com,Legal,yes
+Liyana Lim,liyana.lim@example.com,Corporate Affairs,yes
+Nadia Iyer,nadia.iyer@example.com,Procurement,yes
+Nadia Teoh,nadia.teoh@example.com,Finance,yes
+Rizal Rahman,rizal.rahman@example.com,Human Resources,yes
+Divya Teoh,divya.teoh@example.com,Corporate Affairs,yes
+Arjun Kumar,arjun.kumar@example.com,Internal Audit,yes
+Haikal Rahman,haikal.rahman@example.com,Marketing,yes
+Grace Karim,grace.karim@example.com,Marketing,yes
+Xin Yi Chong,xinyi.chong@example.com,Compliance,yes
+Yee Ling Raman,yeeling.raman@example.com,Compliance,yes
+Grace Ng,grace.ng@example.com,Marketing,yes
+Azlan Hassan,azlan.hassan@example.com,Internal Audit,yes
+Iman Raman,iman.raman@example.com,Compliance,no
+Grace Ibrahim,grace.ibrahim@example.com,Human Resources,yes
+Arjun Zainal,arjun.zainal@example.com,Internal Audit,yes
+Sarah Goh,sarah.goh@example.com,Procurement,yes
+Hana Das,hana.das@example.com,Human Resources,yes
+Xin Yi Ibrahim,xinyi.ibrahim2@example.com,Marketing,yes
+Meena Yusof,meena.yusof2@example.com,Marketing,yes
+Faiz Teoh,faiz.teoh@example.com,Marketing,yes
+Zara Kumar,zara.kumar2@example.com,Administration,yes
+Hana Reddy,hana.reddy2@example.com,Finance,yes
+Arjun Chong,arjun.chong@example.com,Customer Service,yes
+Faiz Zainal,faiz.zainal@example.com,Administration,yes
+Syafiq Lee,syafiq.lee2@example.com,Customer Service,yes
+Lina Nair,lina.nair@example.com,Finance,yes
+Kavya Razak,kavya.razak@example.com,Operations,no
+Iman Teoh,iman.teoh@example.com,Corporate Affairs,yes
+Deepa Menon,deepa.menon@example.com,Procurement,yes
+Anand Lee,anand.lee@example.com,Customer Service,no
+Mei Ling Reddy,meiling.reddy@example.com,Procurement,no
+Mei Ling Ong,meiling.ong2@example.com,Procurement,yes
+Marcus Hassan,marcus.hassan@example.com,Corporate Affairs,yes
+Liyana Zainal,liyana.zainal@example.com,Risk Management,yes
+Siti Ibrahim,siti.ibrahim@example.com,Compliance,yes
+Aisyah Wong,aisyah.wong@example.com,Customer Service,yes
+Arjun Razak,arjun.razak@example.com,Finance,yes
+Ethan Razak,ethan.razak@example.com,Internal Audit,yes
+Syafiq Nair,syafiq.nair2@example.com,Human Resources,no
+Lina Ong,lina.ong@example.com,Risk Management,yes
+Rizal Wong,rizal.wong@example.com,Operations,yes
+Farhan Yusof,farhan.yusof@example.com,Marketing,yes
+Syafiq Ismail,syafiq.ismail@example.com,Information Technology,yes
+Deepa Raman,deepa.raman2@example.com,Administration,yes
+Wei Jie Ng,weijie.ng@example.com,Operations,yes
+Mei Ling Pillai,meiling.pillai@example.com,Sales,no
+Karthik Teoh,karthik.teoh@example.com,Customer Service,yes
+Deepa Ismail,deepa.ismail@example.com,Sales,yes
+Deepa Zainal,deepa.zainal@example.com,Finance,yes
+Daniel Das,daniel.das2@example.com,Administration,yes
+Haikal Singh,haikal.singh@example.com,Risk Management,yes
+Kavya Ismail,kavya.ismail@example.com,Corporate Affairs,yes
+Arjun Goh,arjun.goh2@example.com,Risk Management,yes
+Nadia Ibrahim,nadia.ibrahim@example.com,Procurement,yes
+Divya Rahman,divya.rahman@example.com,Customer Service,yes
+Kai Wen Tan,kaiwen.tan2@example.com,Risk Management,yes
+Aiman Tan,aiman.tan@example.com,Sales,yes
+Wei Jie Nair,weijie.nair@example.com,Sales,yes
+Suresh Ismail,suresh.ismail@example.com,Customer Service,yes
+Adam Tan,adam.tan@example.com,Operations,no
+Hui Ying Reddy,huiying.reddy@example.com,Compliance,yes
+Aisyah Nair,aisyah.nair3@example.com,Administration,yes
+Zhe Kai Ismail,zhekai.ismail@example.com,Human Resources,yes
+Sanjay Singh,sanjay.singh@example.com,Customer Service,yes
+Sarah Ismail,sarah.ismail@example.com,Human Resources,yes
+Zara Shah,zara.shah@example.com,Marketing,yes
+Grace Chong,grace.chong@example.com,Operations,yes
+Lina Chan,lina.chan2@example.com,Corporate Affairs,yes
+Aiman Razak,aiman.razak2@example.com,Compliance,yes
+Zhe Kai Rahman,zhekai.rahman@example.com,Human Resources,no
+Iman Ng,iman.ng@example.com,Operations,yes
+Danish Chong,danish.chong@example.com,Internal Audit,yes
+Ethan Zainal,ethan.zainal@example.com,Sales,yes
+Arjun Karim,arjun.karim2@example.com,Customer Service,yes
+Jun Hao Osman,junhao.osman@example.com,Procurement,yes
+Zara Reddy,zara.reddy@example.com,Operations,yes
+Zhe Kai Tan,zhekai.tan@example.com,Corporate Affairs,yes
+Aisyah Razak,aisyah.razak2@example.com,Internal Audit,yes
+Vijay Ong,vijay.ong@example.com,Risk Management,yes
+Danish Ng,danish.ng@example.com,Compliance,yes
+Kai Wen Teoh,kaiwen.teoh2@example.com,Corporate Affairs,yes
+Priya Shah,priya.shah@example.com,Legal,yes
+Grace Karim,grace.karim2@example.com,Procurement,yes
+Zhe Kai Ismail,zhekai.ismail2@example.com,Legal,yes
+Ethan Shah,ethan.shah@example.com,Corporate Affairs,yes

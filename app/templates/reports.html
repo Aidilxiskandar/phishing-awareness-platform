@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>Per-person risk</h2>
+  <p style="color:var(--muted);font-size:13px;margin-top:-6px">
+    Behaviour across all campaigns. Human click = +3, open = +1, report = −2.
+    Scanner clicks are excluded — they aren't the person. Higher = riskier.</p>
+  {% if risk %}
+  <table>
+    <tr><th>Name</th><th>Email</th><th>Dept</th><th>Campaigns</th><th>Opens</th>
+        <th>Human clicks</th><th>Reports</th><th>Score</th><th>Band</th></tr>
+    {% for r in risk %}
+    <tr>
+      <td>{{ r.user.name or '—' }}</td>
+      <td>{{ r.user.email }}</td>
+      <td>{{ r.user.department or '—' }}</td>
+      <td>{{ r.campaigns }}</td>
+      <td>{{ r.opens }}</td>
+      <td>{{ r.human_clicks }}</td>
+      <td>{{ r.reports }}</td>
+      <td><strong>{{ r.score }}</strong></td>
+      <td>
+        {% if r.band == 'High' %}<span class="pill scanner">High</span>
+        {% elif r.band == 'Medium' %}<span class="pill unknown">Medium</span>
+        {% else %}<span class="pill human">Low</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:var(--muted)">No users yet.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Full evidence log</h2>
+  <p style="margin-top:-6px"><a class="btn" href="/reports/export.csv">⬇ Export CSV</a></p>
+  {% if events %}
+  <table style="margin-top:14px">
+    <tr><th>When (UTC)</th><th>Campaign</th><th>Recipient</th><th>Type</th><th>Verdict</th>
+        <th>Why</th><th>IP</th><th>User-Agent</th></tr>
+    {% for e in events %}
+    <tr>
+      <td>{{ e.created_at.strftime('%m-%d %H:%M:%S') }}</td>
+      <td>{{ campaign_by_id.get(e.campaign_id).name if campaign_by_id.get(e.campaign_id) else e.campaign_id }}</td>
+      <td>{{ (target_by_id.get(e.target_id).email) if target_by_id.get(e.target_id) else e.target_id }}</td>
+      <td>{{ e.type.value }}</td>
+      <td><span class="pill {{ e.verdict.value }}">{{ e.verdict.value }}</span></td>
+      <td style="max-width:220px">{{ e.reason }}</td>
+      <td><code>{{ e.ip }}</code></td>
+      <td><code>{{ (e.user_agent[:40] ~ '…') if e.user_agent|length > 40 else e.user_agent }}</code></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:var(--muted)">No events yet.</p>
+  {% endif %}
+</div>
+
+{% endblock %}
