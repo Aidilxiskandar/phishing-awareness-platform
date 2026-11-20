@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     # --- Detection ---
     scanner_time_window_seconds: int = 15
 
+    # --- Data retention ---
+    # Delete evidence (events) older than this many days. 0 = keep indefinitely.
+    retention_days: int = 0
+
     # --- Infrastructure ---
     # Override the SQLite location / use another DB URL. Empty = default file in repo.
     database_url: str = ""
