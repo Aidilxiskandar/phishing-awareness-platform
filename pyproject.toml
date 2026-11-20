@@ -27,3 +27,7 @@ addopts = "-q"
 branch = true
 source = ["app"]
 omit = ["app/sampledata.py"]
+
+[tool.coverage.report]
+# CI fails if coverage drops below this (currently ~93%).
+fail_under = 85

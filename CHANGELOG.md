@@ -10,6 +10,9 @@ semantic.
   users, targets, events (IP/UA), quiz results, groups and audit history; rotates
   tracking tokens; keeps campaign aggregates intact. Alembic migration adds
   `user.erased_at`.
+- **Coverage**: 59 → 93 tests, ~74% → ~93% branch coverage (training/quiz
+  scoring, video resolution, email preview, group targeting, staff seeding, SMTP
+  header-injection, prod config). CI now enforces `fail_under = 85`.
 - **Deployment**: multi-stage `Dockerfile` (Python 3.12, non-root, healthcheck),
   `docker-compose.yml` with a persistent SQLite volume, `.dockerignore`, `Makefile`,
   `LICENSE` (MIT + ethical-use notice), and this changelog.
