@@ -138,8 +138,8 @@ app.add_middleware(
 
 @app.get("/login", response_class=HTMLResponse)
 def login_form(request: Request, next: str = "/"):
-    return templates.TemplateResponse("login.html", {
-        "request": request, "next": security.safe_next(next), "error": None,
+    return templates.TemplateResponse(request, "login.html", {
+        "next": security.safe_next(next), "error": None,
         "tab": None, "dry_run": settings.dry_run,
     })
 
@@ -148,8 +148,8 @@ def login_form(request: Request, next: str = "/"):
 def login(request: Request, username: str = Form(...), password: str = Form(...),
           next: str = Form("/")):
     if not security.verify_credentials(username, password):
-        return templates.TemplateResponse("login.html", {
-            "request": request, "next": security.safe_next(next),
+        return templates.TemplateResponse(request, "login.html", {
+            "next": security.safe_next(next),
             "error": "Invalid username or password.", "tab": None,
             "dry_run": settings.dry_run,
         }, status_code=401)
@@ -438,8 +438,8 @@ def dashboard(request: Request):
         "click_rate": click_rate,
         "trainings_done": len(results),
     }
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request, "tab": "dashboard", "stats": stats, "charts": charts,
+    return templates.TemplateResponse(request, "dashboard.html", {
+        "tab": "dashboard", "stats": stats, "charts": charts,
         "recent": recent, "target_by_id": target_by_id, "dry_run": settings.dry_run,
     })
 
@@ -462,8 +462,8 @@ def phishing(request: Request):
                 "scanner_clicks": sum(1 for e in events if e.type == EventType.CLICK and e.verdict == Verdict.SCANNER),
                 "reports": sum(1 for e in events if e.type == EventType.REPORT),
             })
-    return templates.TemplateResponse("phishing.html", {
-        "request": request, "tab": "phishing", "rows": rows, "dry_run": settings.dry_run,
+    return templates.TemplateResponse(request, "phishing.html", {
+        "tab": "phishing", "rows": rows, "dry_run": settings.dry_run,
     })
 
 
@@ -496,8 +496,8 @@ def campaign_detail(request: Request, cid: int, notice: str = ""):
     notice_text = {
         "already_sent": "This campaign has already been sent — re-sending is blocked.",
     }.get(notice, "")
-    return templates.TemplateResponse("campaign.html", {
-        "request": request, "tab": "phishing", "campaign": campaign,
+    return templates.TemplateResponse(request, "campaign.html", {
+        "tab": "phishing", "campaign": campaign,
         "targets": targets, "events": events, "target_by_id": target_by_id,
         "available_users": available, "groups": groups, "notice": notice_text,
         "dry_run": settings.dry_run,
@@ -514,8 +514,8 @@ def preview_email(request: Request, cid: int, tid: int):
         if not campaign or not target or target.campaign_id != cid:
             return HTMLResponse("Not found", status_code=404)
         urls = build_tracking_urls(target.token)
-    return templates.TemplateResponse("email_preview.html", {
-        "request": request, "tab": "phishing", "campaign": campaign,
+    return templates.TemplateResponse(request, "email_preview.html", {
+        "tab": "phishing", "campaign": campaign,
         "target": target, "urls": urls, "dry_run": settings.dry_run,
     })
 
@@ -670,8 +670,8 @@ def users_page(request: Request, group: int | None = None):
 
         group_rows = [{"g": g, "count": len(members_by_group.get(g.id, set()))} for g in groups]
         active_group = next((g for g in groups if g.id == group), None)
-    return templates.TemplateResponse("users.html", {
-        "request": request, "tab": "users", "users": users, "groups": groups,
+    return templates.TemplateResponse(request, "users.html", {
+        "tab": "users", "users": users, "groups": groups,
         "group_rows": group_rows, "groups_by_user": groups_by_user,
         "active_group": active_group, "total_users": len(users),
         "dry_run": settings.dry_run,
@@ -748,8 +748,8 @@ def training_list(request: Request):
         module_by_id = {m.id: m for m in modules}
         done = len(results)
         passed = sum(1 for r in results if r.total and r.score == r.total)
-    return templates.TemplateResponse("training_list.html", {
-        "request": request, "tab": "training", "modules": modules, "results": results[:15],
+    return templates.TemplateResponse(request, "training_list.html", {
+        "tab": "training", "modules": modules, "results": results[:15],
         "module_by_id": module_by_id, "done": done, "passed": passed, "dry_run": settings.dry_run,
     })
 
@@ -766,8 +766,8 @@ def training_detail(request: Request, slug: str, token: str = ""):
         ).all()
         bullets = [b for b in module.body.split("\n") if b.strip()]
         video = _video_info(module)
-    return templates.TemplateResponse("training_detail.html", {
-        "request": request, "tab": "training", "module": module, "questions": questions,
+    return templates.TemplateResponse(request, "training_detail.html", {
+        "tab": "training", "module": module, "questions": questions,
         "bullets": bullets, "video": video, "token": token, "result": None,
         "dry_run": settings.dry_run,
     })
@@ -801,8 +801,8 @@ async def submit_quiz(request: Request, slug: str):
         bullets = [b for b in module.body.split("\n") if b.strip()]
         video = _video_info(module)
         result = {"score": score, "total": len(questions)}
-    return templates.TemplateResponse("training_detail.html", {
-        "request": request, "tab": "training", "module": module, "questions": questions,
+    return templates.TemplateResponse(request, "training_detail.html", {
+        "tab": "training", "module": module, "questions": questions,
         "bullets": bullets, "video": video, "token": token, "result": result,
         "dry_run": settings.dry_run,
     })
@@ -819,8 +819,8 @@ def reports(request: Request):
         campaigns = session.exec(select(Campaign)).all()
         target_by_id = {t.id: t for t in targets}
         campaign_by_id = {c.id: c for c in campaigns}
-    return templates.TemplateResponse("reports.html", {
-        "request": request, "tab": "reports", "risk": risk, "events": events[:200],
+    return templates.TemplateResponse(request, "reports.html", {
+        "tab": "reports", "risk": risk, "events": events[:200],
         "target_by_id": target_by_id, "campaign_by_id": campaign_by_id, "dry_run": settings.dry_run,
     })
 
@@ -890,7 +890,7 @@ def track_click(request: Request, token: str):
         _log_event(session, target, campaign, EventType.CLICK, request,
                    Verdict(result.verdict), result.reason, secs)
         tok = target.token
-    return templates.TemplateResponse("landing.html", {"request": request, "token": tok})
+    return templates.TemplateResponse(request, "landing.html", {"token": tok})
 
 
 @app.post("/t/confirm/{token}")
@@ -930,5 +930,5 @@ def track_report(request: Request, token: str):
         _log_event(session, target, campaign, EventType.REPORT, request,
                    Verdict.HUMAN, "recipient reported the email as phishing",
                    _seconds_since_send(campaign))
-    return templates.TemplateResponse("awareness.html",
-                                      {"request": request, "reported": True})
+    return templates.TemplateResponse(request, "awareness.html",
+                                      {"reported": True})

@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# One lean job — the repo is private, so keep Actions minutes low.
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check app tests
+
+      - name: Test (pytest + coverage)
+        run: pytest --cov=app --cov-report=term-missing
+
+      - name: Dependency vulnerability scan (pip-audit)
+        # Advisory only — reports issues without failing the build.
+        continue-on-error: true
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
