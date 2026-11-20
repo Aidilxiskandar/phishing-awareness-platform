@@ -5,6 +5,9 @@ semantic.
 
 ## [Unreleased]
 ### Added
+- **`python -m app.migrate`**: upgrades fresh, Alembic-managed and legacy
+  (`create_all`) databases to head; the Docker image runs it on every start and
+  now ships the `alembic/` migrations. Compose mounts training videos read-only.
 - **Right to erasure** (GDPR Art. 17 / PDPA): per-user Erase action on the Users
   tab and `python -m app.maintenance erase EMAIL`. Anonymises the person across
   users, targets, events (IP/UA), quiz results, groups and audit history; rotates

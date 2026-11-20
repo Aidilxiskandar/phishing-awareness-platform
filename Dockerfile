@@ -18,9 +18,12 @@ RUN useradd --create-home --uid 1000 app && mkdir -p /data && chown app:app /dat
 WORKDIR /app
 COPY --from=builder /venv /venv
 COPY app ./app
+COPY alembic ./alembic
+COPY alembic.ini ./
 USER app
 EXPOSE 8000
 # Probe the health endpoint with stdlib (no curl in slim image).
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).status==200 else 1)"
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Migrate the schema (fresh, legacy or managed DB) before serving.
+CMD ["sh", "-c", "python -m app.migrate && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]

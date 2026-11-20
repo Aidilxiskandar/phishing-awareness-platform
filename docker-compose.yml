@@ -15,6 +15,9 @@ services:
     #   - .env
     volumes:
       - phishguard-data:/data
+      # Training videos aren't baked into the image (rendered from video/ via
+      # Remotion); mount them read-only so the lesson players work.
+      - ./app/static/videos:/app/app/static/videos:ro
     restart: unless-stopped
 
 volumes:

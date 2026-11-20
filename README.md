@@ -114,6 +114,9 @@ until you actually need them).
 docker compose up --build        # http://localhost:8000  (SQLite persisted in a volume)
 ```
 
+The container migrates the database on start, and mounts `app/static/videos/`
+read-only so rendered training videos play.
+
 ### Production configuration
 
 Set these before running in production (the app refuses to boot without them when
@@ -137,11 +140,14 @@ A fresh database is created automatically on first run (dev/test). For a managed
 deployment, use Alembic to own the schema:
 
 ```bash
-alembic upgrade head     # create/upgrade the schema
+python -m app.migrate    # create/upgrade the schema (safe to run on every start)
 alembic revision --autogenerate -m "describe change"   # after a model change
 ```
 
-When an `alembic_version` table exists, the app leaves schema creation to Alembic.
+`app.migrate` handles an empty database, an Alembic-managed one, and a legacy
+database first built by `create_all` (it stamps the baseline, then upgrades). The
+Docker image runs it automatically before starting the server. When an
+`alembic_version` table exists, the app leaves schema creation to Alembic.
 
 ### Privacy: retention & right to erasure
 
