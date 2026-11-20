@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 
-from sqlalchemy import event, text
+from sqlalchemy import event, inspect
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.config import settings
@@ -32,31 +32,16 @@ def init_db() -> None:
     # Import models so SQLModel registers the tables before create_all.
     from app import models  # noqa: F401
 
-    SQLModel.metadata.create_all(engine)
-    _ensure_columns()
+    # Schema ownership:
+    #   - Managed deployment: run `alembic upgrade head`; that creates an
+    #     alembic_version table. When present, Alembic owns the schema and we do
+    #     NOT create_all (avoids clashing with migrations).
+    #   - Fresh dev/test DB (no alembic_version): bootstrap the schema directly so
+    #     the app runs with zero migration steps.
+    if "alembic_version" not in inspect(engine).get_table_names():
+        SQLModel.metadata.create_all(engine)
     _seed_training()
     _ensure_demo_video()
-
-
-def _ensure_columns() -> None:
-    """Lightweight additive migration: add new columns to existing SQLite tables
-    without dropping data (create_all never ALTERs an existing table)."""
-    wanted = {
-        "trainingmodule": [
-            ("video_url", "VARCHAR DEFAULT ''"),
-            ("video_poster", "VARCHAR DEFAULT ''"),
-        ],
-        "target": [
-            ("sent_at", "DATETIME"),
-            ("send_error", "VARCHAR DEFAULT ''"),
-        ],
-    }
-    with engine.begin() as conn:
-        for table, cols in wanted.items():
-            existing = {row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))}
-            for name, ddl in cols:
-                if name not in existing:
-                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
 
 
 def _ensure_demo_video() -> None:

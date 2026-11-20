@@ -131,6 +131,18 @@ Set these before running in production (the app refuses to boot without them whe
 Put the app behind TLS. In dev, login is `admin` / `phishguard-dev` and email is
 dry-run (printed to the console). See `.env.example` for the full list.
 
+### Database migrations
+
+A fresh database is created automatically on first run (dev/test). For a managed
+deployment, use Alembic to own the schema:
+
+```bash
+alembic upgrade head     # create/upgrade the schema
+alembic revision --autogenerate -m "describe change"   # after a model change
+```
+
+When an `alembic_version` table exists, the app leaves schema creation to Alembic.
+
 ## Roadmap
 
 - **MVP (done):** campaigns, tracked send, open pixel, click classification, JS
