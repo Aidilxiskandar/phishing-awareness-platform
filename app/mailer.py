@@ -24,21 +24,32 @@ def build_tracking_urls(token: str) -> dict:
     }
 
 
-def render_email_html(campaign: Campaign, target: Target) -> str:
+def render_email_html(campaign: Campaign, target: Target, preview: bool = False) -> str:
+    """Build the exact HTML a recipient receives.
+
+    When `preview=True` (admin "view email"), the open-tracking pixel is omitted
+    and the button is defanged (href="#") so that an admin looking at the message
+    never fires an open/click event and pollutes the evidence log.
+    """
     urls = build_tracking_urls(target.token)
     greeting = f"Hi {target.name}," if target.name else "Hi,"
+    click_href = "#" if preview else urls["click"]
+    pixel = "" if preview else (
+        f'<img src="{urls["open_pixel"]}" width="1" height="1" alt="" style="display:none;">')
     return f"""\
-<html><body style="font-family:Arial,sans-serif;color:#222;">
+<html><body style="font-family:Arial,sans-serif;color:#222;margin:0;padding:20px;background:#f4f5f7;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:28px;">
   <p>{greeting}</p>
   <p>We detected unusual sign-in activity on your account. Please verify your
      identity within 24 hours to avoid suspension.</p>
-  <p><a href="{urls['click']}"
+  <p><a href="{click_href}"
         style="background:#2563eb;color:#fff;padding:10px 18px;
-               text-decoration:none;border-radius:6px;">Verify my account</a></p>
+               text-decoration:none;border-radius:6px;display:inline-block;">Verify my account</a></p>
   <p style="font-size:12px;color:#888;">If you did not request this, you can
      ignore this email.</p>
+  </div>
   <!-- open tracking pixel -->
-  <img src="{urls['open_pixel']}" width="1" height="1" alt="" style="display:none;">
+  {pixel}
 </body></html>"""
 
 

@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from sqlmodel import Session, SQLModel, create_engine, select
+from sqlalchemy import text
 
 DB_PATH = Path(__file__).resolve().parent.parent / "phishing.db"
 engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
@@ -13,7 +14,40 @@ def init_db() -> None:
     from app import models  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
+    _ensure_columns()
     _seed_training()
+    _ensure_demo_video()
+
+
+def _ensure_columns() -> None:
+    """Lightweight additive migration: add new columns to existing SQLite tables
+    without dropping data (create_all never ALTERs an existing table)."""
+    wanted = {
+        "trainingmodule": [
+            ("video_url", "VARCHAR DEFAULT ''"),
+            ("video_poster", "VARCHAR DEFAULT ''"),
+        ],
+    }
+    with engine.begin() as conn:
+        for table, cols in wanted.items():
+            existing = {row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))}
+            for name, ddl in cols:
+                if name not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
+
+
+def _ensure_demo_video() -> None:
+    """Wire the first module to a local video path so the player is demoable.
+    Idempotent: only sets it when the module has no video yet."""
+    from app.models import TrainingModule
+    with get_session() as session:
+        m = session.exec(
+            select(TrainingModule).where(TrainingModule.slug == "spotting-phishing")
+        ).first()
+        if m and not m.video_url:
+            m.video_url = "/static/videos/spotting-phishing.mp4"
+            session.add(m)
+            session.commit()
 
 
 def get_session() -> Session:

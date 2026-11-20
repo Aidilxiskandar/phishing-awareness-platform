@@ -121,6 +121,10 @@ class TrainingModule(SQLModel, table=True):
     summary: str = ""
     body: str = ""          # the lesson text (newline-separated bullet points)
     order: int = 0
+    # Optional training video: a local path (e.g. /static/videos/foo.mp4) served by
+    # the app, or a YouTube/Vimeo link. Empty = no video for this module.
+    video_url: str = ""
+    video_poster: str = ""  # optional poster image path/URL for the <video> player
 
 
 class TrainingQuestion(SQLModel, table=True):

@@ -18,18 +18,22 @@ from __future__ import annotations
 import base64
 import csv
 import io
+import math
 import secrets
 from datetime import timezone
 
+from pathlib import Path
+
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import select
 
 from app.config import settings
 from app.database import get_session, init_db
 from app.detection import ClickSignals, classify
-from app.mailer import send_campaign_email
+from app.mailer import build_tracking_urls, render_email_html, send_campaign_email
 from app.models import (
     Campaign,
     CampaignStatus,
@@ -48,7 +52,57 @@ from app.models import (
 from app.sampledata import generate_staff
 
 app = FastAPI(title="Phishing Awareness Platform")
+
+# Self-hosted static assets (training videos, posters, etc.).
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+(STATIC_DIR / "videos").mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 templates = Jinja2Templates(directory="app/templates")
+
+
+def _video_info(module) -> dict | None:
+    """Resolve a module's video into render-ready info for the template.
+
+    Supports local files served from /static (native <video>) and YouTube/Vimeo
+    links (embedded iframe). For a local file we also report whether it exists on
+    disk yet, so the page can show a tidy 'drop your clip here' placeholder until
+    the real video is added.
+    """
+    url = (module.video_url or "").strip()
+    if not url:
+        return None
+    low = url.lower()
+    if "youtube.com/watch" in low or "youtu.be/" in low or "youtube.com/embed" in low:
+        vid = url.split("v=")[-1].split("&")[0] if "watch" in low else url.rstrip("/").split("/")[-1]
+        return {"kind": "youtube", "embed": f"https://www.youtube.com/embed/{vid}", "ready": True, "url": url}
+    if "vimeo.com" in low:
+        vid = url.rstrip("/").split("/")[-1]
+        return {"kind": "vimeo", "embed": f"https://player.vimeo.com/video/{vid}", "ready": True, "url": url}
+    # Treat anything else as a (local) file source.
+    ready = True
+    if url.startswith("/static/"):
+        ready = (STATIC_DIR.parent / url.lstrip("/")).exists()
+    return {"kind": "file", "url": url, "ready": ready, "poster": (module.video_poster or "").strip()}
+
+
+def humandur(seconds: float | None) -> str:
+    """Render 'seconds since send' as a readable duration: 7.2s, 56m, 1h 12m."""
+    if seconds is None:
+        return "—"
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    mins = int(seconds // 60)
+    if mins < 60:
+        return f"{mins}m"
+    hours, rem = divmod(mins, 60)
+    if hours < 24:
+        return f"{hours}h {rem}m" if rem else f"{hours}h"
+    days, rh = divmod(hours, 24)
+    return f"{days}d {rh}h" if rh else f"{days}d"
+
+
+templates.env.filters["humandur"] = humandur
 
 # A transparent 1x1 PNG, returned by the open-tracking pixel.
 _PIXEL = base64.b64decode(
@@ -136,6 +190,58 @@ def _risk_scores(session) -> list[dict]:
 
 # --- Dashboard --------------------------------------------------------------
 
+def _donut(segments: list[dict], r: int = 54) -> dict:
+    """Precompute stroke-dasharray geometry for an SVG donut chart.
+
+    Each segment becomes a full circle whose visible arc is `dash` long,
+    offset so the segments sit end to end. Rendered with a rotate(-90) so the
+    first segment starts at 12 o'clock.
+    """
+    circ = 2 * math.pi * r
+    total = sum(s["value"] for s in segments)
+    out, offset = [], 0.0
+    for s in segments:
+        frac = (s["value"] / total) if total else 0.0
+        dash = frac * circ
+        out.append({
+            **s,
+            "dash": round(dash, 2),
+            "gap": round(circ - dash, 2),
+            "offset": round(-offset, 2),
+            "pct": round(frac * 100),
+        })
+        offset += dash
+    return {"segments": out, "circ": round(circ, 2), "r": r, "total": total}
+
+
+def _trend(series: list[dict], w: int = 560, h: int = 170) -> dict:
+    """Precompute polyline points + area path for the phish-prone % line chart.
+
+    series: ordered list of {"name": str, "rate": float} (one point per campaign).
+    """
+    pad_l, pad_r, pad_t, pad_b = 12, 12, 16, 22
+    pw, ph = w - pad_l - pad_r, h - pad_t - pad_b
+    n = len(series)
+    top = max(10, math.ceil((max((s["rate"] for s in series), default=0) or 10) / 10) * 10)
+    pts = []
+    for i, s in enumerate(series):
+        x = pad_l + (pw * i / (n - 1) if n > 1 else pw / 2)
+        y = pad_t + ph * (1 - s["rate"] / top)
+        pts.append({"x": round(x, 1), "y": round(y, 1), **s})
+    poly = " ".join(f'{p["x"]},{p["y"]}' for p in pts)
+    if pts:
+        base = pad_t + ph
+        area = (f'M {pts[0]["x"]},{base} '
+                + " ".join(f'L {p["x"]},{p["y"]}' for p in pts)
+                + f' L {pts[-1]["x"]},{base} Z')
+    else:
+        area = ""
+    gridlines = [{"y": round(pad_t + ph * (1 - frac), 1), "val": round(top * frac)}
+                 for frac in (0, 0.5, 1)]
+    return {"w": w, "h": h, "points": poly, "area": area, "pts": pts,
+            "top": top, "base": round(pad_t + ph, 1), "gridlines": gridlines}
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request):
     with get_session() as session:
@@ -144,6 +250,7 @@ def dashboard(request: Request):
         targets = session.exec(select(Target)).all()
         events = session.exec(select(Event)).all()
         results = session.exec(select(QuizResult)).all()
+        risk_rows = _risk_scores(session)
 
         sent_targets = len(targets)
         human_clicks = sum(1 for e in events if e.type == EventType.CLICK and e.verdict == Verdict.HUMAN)
@@ -151,8 +258,60 @@ def dashboard(request: Request):
         reports = sum(1 for e in events if e.type == EventType.REPORT)
         click_rate = (human_clicks / sent_targets * 100) if sent_targets else 0.0
 
+        # Distinct targets per funnel stage (a person counted once per stage).
+        opened_ids = {e.target_id for e in events if e.type == EventType.OPEN}
+        clicked_ids = {e.target_id for e in events
+                       if e.type == EventType.CLICK and e.verdict == Verdict.HUMAN}
+        reported_ids = {e.target_id for e in events if e.type == EventType.REPORT}
+
+        # Per-campaign phish-prone trend (ordered by when the drill went out).
+        camp_targets: dict[int, set[int]] = {}
+        for t in targets:
+            camp_targets.setdefault(t.campaign_id, set()).add(t.id)
+        sent_campaigns = [c for c in campaigns
+                          if camp_targets.get(c.id) and c.status == CampaignStatus.SENT]
+        sent_campaigns.sort(key=lambda c: (c.sent_at or c.created_at))
+        trend_series = []
+        for c in sent_campaigns:
+            tids = camp_targets.get(c.id, set())
+            hc = len({e.target_id for e in events if e.target_id in tids
+                      and e.type == EventType.CLICK and e.verdict == Verdict.HUMAN})
+            trend_series.append({"name": c.name, "rate": (hc / len(tids) * 100) if tids else 0.0,
+                                 "targets": len(tids), "clicks": hc})
+
         recent = sorted(events, key=lambda e: e.id or 0, reverse=True)[:10]
         target_by_id = {t.id: t for t in targets}
+
+    # Risk distribution over people actually tested (ignore untargeted directory).
+    tested = [r for r in risk_rows if r["campaigns"] > 0]
+    band_count = {b: sum(1 for r in tested if r["band"] == b) for b in ("High", "Medium", "Low")}
+    top_risk = [r for r in tested if r["score"] > 0][:6]
+
+    # Phish-prone delta: latest campaign vs the one before it.
+    delta = None
+    if len(trend_series) >= 2:
+        delta = trend_series[-1]["rate"] - trend_series[-2]["rate"]
+
+    charts = {
+        "funnel": [
+            {"label": "Delivered", "value": sent_targets, "color": "var(--brand-2)"},
+            {"label": "Opened", "value": len(opened_ids), "color": "var(--blue)"},
+            {"label": "Clicked (human)", "value": len(clicked_ids), "color": "var(--red)"},
+            {"label": "Reported", "value": len(reported_ids), "color": "var(--green)"},
+        ],
+        "risk_donut": _donut([
+            {"label": "High", "value": band_count["High"], "color": "var(--red)"},
+            {"label": "Medium", "value": band_count["Medium"], "color": "var(--amber)"},
+            {"label": "Low", "value": band_count["Low"], "color": "var(--green)"},
+        ]),
+        "accuracy": {"human": human_clicks, "scanner": scanner_clicks, "reported": reports,
+                     "total_clicks": human_clicks + scanner_clicks},
+        "trend": _trend(trend_series),
+        "trend_series": trend_series,
+        "delta": delta,
+        "top_risk": top_risk,
+        "tested_count": len(tested),
+    }
 
     stats = {
         "users": len(users),
@@ -165,7 +324,7 @@ def dashboard(request: Request):
         "trainings_done": len(results),
     }
     return templates.TemplateResponse("dashboard.html", {
-        "request": request, "tab": "dashboard", "stats": stats,
+        "request": request, "tab": "dashboard", "stats": stats, "charts": charts,
         "recent": recent, "target_by_id": target_by_id, "dry_run": settings.dry_run,
     })
 
@@ -224,6 +383,34 @@ def campaign_detail(request: Request, cid: int):
         "targets": targets, "events": events, "target_by_id": target_by_id,
         "available_users": available, "groups": groups, "dry_run": settings.dry_run,
     })
+
+
+@app.get("/campaigns/{cid}/preview/{tid}", response_class=HTMLResponse)
+def preview_email(request: Request, cid: int, tid: int):
+    """Admin view: the exact personalised email this recipient received,
+    shown in an email-client style frame. Tracking is neutralised in preview."""
+    with get_session() as session:
+        campaign = session.get(Campaign, cid)
+        target = session.get(Target, tid)
+        if not campaign or not target or target.campaign_id != cid:
+            return HTMLResponse("Not found", status_code=404)
+        urls = build_tracking_urls(target.token)
+    return templates.TemplateResponse("email_preview.html", {
+        "request": request, "tab": "phishing", "campaign": campaign,
+        "target": target, "urls": urls, "dry_run": settings.dry_run,
+    })
+
+
+@app.get("/campaigns/{cid}/email/{tid}", response_class=HTMLResponse)
+def raw_email(cid: int, tid: int):
+    """Raw rendered email HTML for the preview iframe (no tracking fired)."""
+    with get_session() as session:
+        campaign = session.get(Campaign, cid)
+        target = session.get(Target, tid)
+        if not campaign or not target or target.campaign_id != cid:
+            return HTMLResponse("Not found", status_code=404)
+        html = render_email_html(campaign, target, preview=True)
+    return HTMLResponse(html)
 
 
 @app.post("/campaigns/{cid}/targets")
@@ -420,9 +607,11 @@ def training_detail(request: Request, slug: str, token: str = ""):
             .order_by(TrainingQuestion.order)
         ).all()
         bullets = [b for b in module.body.split("\n") if b.strip()]
+        video = _video_info(module)
     return templates.TemplateResponse("training_detail.html", {
         "request": request, "tab": "training", "module": module, "questions": questions,
-        "bullets": bullets, "token": token, "result": None, "dry_run": settings.dry_run,
+        "bullets": bullets, "video": video, "token": token, "result": None,
+        "dry_run": settings.dry_run,
     })
 
 
@@ -452,10 +641,12 @@ async def submit_quiz(request: Request, slug: str):
                                score=score, total=len(questions)))
         session.commit()
         bullets = [b for b in module.body.split("\n") if b.strip()]
+        video = _video_info(module)
         result = {"score": score, "total": len(questions)}
     return templates.TemplateResponse("training_detail.html", {
         "request": request, "tab": "training", "module": module, "questions": questions,
-        "bullets": bullets, "token": token, "result": result, "dry_run": settings.dry_run,
+        "bullets": bullets, "video": video, "token": token, "result": result,
+        "dry_run": settings.dry_run,
     })
 
 

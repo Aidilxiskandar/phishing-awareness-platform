@@ -8,19 +8,19 @@
     Scanner clicks are excluded — they aren't the person. Higher = riskier.</p>
   {% if risk %}
   <table>
-    <tr><th>Name</th><th>Email</th><th>Dept</th><th>Campaigns</th><th>Opens</th>
-        <th>Human clicks</th><th>Reports</th><th>Score</th><th>Band</th></tr>
+    <tr><th>Name</th><th>Email</th><th>Dept</th><th class="num">Campaigns</th><th class="num">Opens</th>
+        <th class="num">Human clicks</th><th class="num">Reports</th><th class="num">Score</th><th class="num">Band</th></tr>
     {% for r in risk %}
     <tr>
       <td>{{ r.user.name or '—' }}</td>
       <td>{{ r.user.email }}</td>
       <td>{{ r.user.department or '—' }}</td>
-      <td>{{ r.campaigns }}</td>
-      <td>{{ r.opens }}</td>
-      <td>{{ r.human_clicks }}</td>
-      <td>{{ r.reports }}</td>
-      <td><strong>{{ r.score }}</strong></td>
-      <td>
+      <td class="num">{{ r.campaigns }}</td>
+      <td class="num">{{ r.opens }}</td>
+      <td class="num">{{ r.human_clicks }}</td>
+      <td class="num">{{ r.reports }}</td>
+      <td class="num"><strong>{{ r.score }}</strong></td>
+      <td class="num">
         {% if r.band == 'High' %}<span class="pill scanner">High</span>
         {% elif r.band == 'Medium' %}<span class="pill unknown">Medium</span>
         {% else %}<span class="pill human">Low</span>{% endif %}

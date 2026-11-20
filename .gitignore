@@ -20,3 +20,12 @@ env/
 
 # pytest
 .pytest_cache/
+
+# Video studio (Remotion) — deps & renders are heavy
+video/node_modules/
+video/out/
+video/.remotion/
+
+# Self-hosted training videos (large binaries; produced locally)
+app/static/videos/*.mp4
+app/static/videos/*.webm

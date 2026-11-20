@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Email preview — {{ target.email }}{% endblock %}
+{% block content %}
+
+<p style="margin-top:0">
+  <a href="/campaigns/{{ campaign.id }}" style="color:var(--muted)">← Back to {{ campaign.name }}</a>
+</p>
+
+<div class="card">
+  <div class="chart-head" style="margin-bottom:4px">
+    <div>
+      <h3>Email received by this recipient</h3>
+      <div class="sub">The exact personalised message — tracking disabled so viewing it logs nothing</div>
+    </div>
+    <span class="pill unknown">Preview</span>
+  </div>
+
+  {# Email client header block #}
+  <div class="mailhdr">
+    <div class="mh-row"><span class="mh-k">From</span><span class="mh-v">{{ campaign.from_name }} &lt;{{ campaign.from_email }}&gt;</span></div>
+    <div class="mh-row"><span class="mh-k">To</span><span class="mh-v">{{ target.name or target.email }} &lt;{{ target.email }}&gt;</span></div>
+    <div class="mh-row"><span class="mh-k">Subject</span><span class="mh-v" style="font-weight:700;color:var(--ink)">{{ campaign.subject }}</span></div>
+  </div>
+
+  {# The real email, sandboxed so its styles can't touch the admin UI #}
+  <iframe class="mailframe" src="/campaigns/{{ campaign.id }}/email/{{ target.id }}"
+          sandbox="allow-same-origin" title="Rendered phishing email"></iframe>
+</div>
+
+<div class="card">
+  <div class="chart-head" style="margin-bottom:4px"><div><h3>What the links do</h3>
+    <div class="sub">Where each tracked element points for this recipient's unique token</div></div></div>
+  <table style="margin-top:10px">
+    <tr><th>Element</th><th>Destination</th><th>What it records</th></tr>
+    <tr>
+      <td><b>“Verify my account” button</b></td>
+      <td><code>{{ urls.click }}</code></td>
+      <td>A click — classified human vs scanner with IP, User-Agent &amp; timing</td>
+    </tr>
+    <tr>
+      <td>Open-tracking pixel</td>
+      <td><code>{{ urls.open_pixel }}</code></td>
+      <td>An open (image loaded by the mail client)</td>
+    </tr>
+    <tr>
+      <td>Report link (awareness)</td>
+      <td><code>{{ urls.report }}</code></td>
+      <td>A report — the good outcome, lowers their risk score</td>
+    </tr>
+  </table>
+  <p style="color:var(--muted);font-size:12.5px;margin:14px 0 0">
+    In this preview the button is defanged (<code>href="#"</code>) and the pixel is omitted, so
+    opening this page never fires an event. The live email a recipient receives uses the real URLs above.</p>
+</div>
+
+<style>
+  .mailhdr{border:1px solid var(--line);border-radius:10px 10px 0 0;background:var(--surface-2);
+    padding:14px 16px;display:flex;flex-direction:column;gap:7px;border-bottom:0;}
+  .mailhdr .mh-row{display:flex;gap:12px;font-size:13px;}
+  .mailhdr .mh-k{width:62px;flex:0 0 auto;color:var(--faint);text-transform:uppercase;
+    font-size:11px;letter-spacing:.05em;font-weight:600;padding-top:1px;}
+  .mailhdr .mh-v{color:var(--muted);}
+  .mailframe{width:100%;height:420px;border:1px solid var(--line);border-radius:0 0 10px 10px;
+    background:#f4f5f7;display:block;}
+</style>
+
+{% endblock %}

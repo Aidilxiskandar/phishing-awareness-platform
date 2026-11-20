@@ -4,6 +4,30 @@
 
 <p style="margin-top:0"><a href="/training" style="color:var(--muted)">← All modules</a></p>
 
+{% if video %}
+<div class="card" style="padding:0;overflow:hidden">
+  {% if video.ready %}
+    {% if video.kind == 'file' %}
+    <video class="vplayer" controls preload="metadata"
+           {% if video.poster %}poster="{{ video.poster }}"{% endif %}>
+      <source src="{{ video.url }}">
+      Your browser can’t play this video. <a href="{{ video.url }}">Download it</a> instead.
+    </video>
+    {% else %}
+    <div class="vembed"><iframe src="{{ video.embed }}" title="{{ module.title }}"
+         allow="accelerometer; autoplay; encrypted-media; picture-in-picture"
+         allowfullscreen loading="lazy"></iframe></div>
+    {% endif %}
+  {% else %}
+    <div class="vplaceholder">
+      <div class="vph-play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+      <div class="vph-title">Training video</div>
+      <div class="vph-sub">Drop your clip at <code>{{ video.url }}</code> — it plays here automatically once the file exists.</div>
+    </div>
+  {% endif %}
+</div>
+{% endif %}
+
 <div class="card">
   <h2>{{ module.title }}</h2>
   <p style="color:var(--muted);margin-top:-6px">{{ module.summary }}</p>
