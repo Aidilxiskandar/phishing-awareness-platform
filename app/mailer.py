@@ -7,12 +7,16 @@ behind an explicit config step.
 """
 from __future__ import annotations
 
+import html
+import logging
 from email.message import EmailMessage
 
 import aiosmtplib
 
 from app.config import settings
 from app.models import Campaign, Target
+
+logger = logging.getLogger("phishguard.mailer")
 
 
 def build_tracking_urls(token: str) -> dict:
@@ -32,7 +36,10 @@ def render_email_html(campaign: Campaign, target: Target, preview: bool = False)
     never fires an open/click event and pollutes the evidence log.
     """
     urls = build_tracking_urls(target.token)
-    greeting = f"Hi {target.name}," if target.name else "Hi,"
+    # Escape the name so a value like "<script>…" can't inject HTML into the email
+    # or into the admin preview (which is served from our own origin).
+    safe_name = html.escape(target.name) if target.name else ""
+    greeting = f"Hi {safe_name}," if safe_name else "Hi,"
     click_href = "#" if preview else urls["click"]
     pixel = "" if preview else (
         f'<img src="{urls["open_pixel"]}" width="1" height="1" alt="" style="display:none;">')
@@ -74,8 +81,11 @@ async def send_campaign_email(campaign: Campaign, target: Target) -> None:
         return
 
     msg = EmailMessage()
-    msg["From"] = f"{campaign.from_name} <{campaign.from_email}>"
-    msg["To"] = f"{target.name} <{target.email}>" if target.name else target.email
+    # Strip CR/LF from display names to prevent email header injection.
+    from_name = campaign.from_name.replace("\r", " ").replace("\n", " ")
+    to_name = target.name.replace("\r", " ").replace("\n", " ")
+    msg["From"] = f"{from_name} <{campaign.from_email}>"
+    msg["To"] = f"{to_name} <{target.email}>" if to_name else target.email
     msg["Subject"] = campaign.subject
     msg.set_content("Please view this email in an HTML-capable client.")
     msg.add_alternative(html, subtype="html")

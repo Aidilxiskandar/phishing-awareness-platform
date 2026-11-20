@@ -44,6 +44,7 @@ class Verdict(str, Enum):
 
 class CampaignStatus(str, Enum):
     DRAFT = "draft"
+    SENDING = "sending"
     SENT = "sent"
 
 
@@ -53,7 +54,9 @@ class User(SQLModel, table=True):
     email: str = Field(index=True, unique=True)
     department: str = ""
     # Ethics gate: only people marked as consenting / authorised may be phished.
-    consented: bool = True
+    # Opt-IN by default (fail-closed): a new user cannot be phished until explicitly
+    # marked as consenting.
+    consented: bool = False
     created_at: datetime = Field(default_factory=utcnow)
 
 
@@ -91,7 +94,10 @@ class Target(SQLModel, table=True):
     email: str
     name: str = ""
     token: str = Field(index=True, unique=True)
-    consented: bool = True
+    consented: bool = False
+    # Per-target send state (lets a send resume, and prevents re-sending).
+    sent_at: datetime | None = None
+    send_error: str = ""
 
 
 class Event(SQLModel, table=True):

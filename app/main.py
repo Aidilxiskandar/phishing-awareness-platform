@@ -18,13 +18,14 @@ from __future__ import annotations
 import base64
 import csv
 import io
+import logging
 import math
 import secrets
 from contextlib import asynccontextmanager
 from datetime import UTC
 from pathlib import Path
 
-from fastapi import FastAPI, Form, Request
+from fastapi import BackgroundTasks, FastAPI, Form, Request
 from fastapi.responses import (
     HTMLResponse,
     JSONResponse,
@@ -58,6 +59,17 @@ from app.models import (
     utcnow,
 )
 from app.sampledata import generate_staff
+
+logger = logging.getLogger("phishguard")
+
+
+def _csv_safe(value) -> str:
+    """Neutralise CSV formula injection: a cell starting with = + - @ (or a tab/CR
+    before them) is executed by spreadsheet apps, so prefix it with a quote."""
+    s = "" if value is None else str(value)
+    if s and s[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + s
+    return s
 
 
 @asynccontextmanager
@@ -467,7 +479,7 @@ def create_campaign(name: str = Form(...), subject: str = Form(...),
 
 
 @app.get("/campaigns/{cid}", response_class=HTMLResponse)
-def campaign_detail(request: Request, cid: int):
+def campaign_detail(request: Request, cid: int, notice: str = ""):
     with get_session() as session:
         campaign = session.get(Campaign, cid)
         if not campaign:
@@ -481,10 +493,14 @@ def campaign_detail(request: Request, cid: int):
         all_users = session.exec(select(User).order_by(User.name)).all()
         available = [u for u in all_users if u.id not in targeted_user_ids]
         groups = session.exec(select(StaffGroup).order_by(StaffGroup.name)).all()
+    notice_text = {
+        "already_sent": "This campaign has already been sent — re-sending is blocked.",
+    }.get(notice, "")
     return templates.TemplateResponse("campaign.html", {
         "request": request, "tab": "phishing", "campaign": campaign,
         "targets": targets, "events": events, "target_by_id": target_by_id,
-        "available_users": available, "groups": groups, "dry_run": settings.dry_run,
+        "available_users": available, "groups": groups, "notice": notice_text,
+        "dry_run": settings.dry_run,
     })
 
 
@@ -556,26 +572,65 @@ def add_group_targets(cid: int, group_id: int = Form(...)):
     return RedirectResponse(f"/campaigns/{cid}", status_code=303)
 
 
+async def _run_campaign_send(cid: int) -> None:
+    """Send a campaign's un-sent targets, one at a time, recording per-target state.
+
+    Runs as a background task so the HTTP request returns immediately. Safe to
+    resume: only targets without a sent_at are attempted, each wrapped so one
+    failure never aborts the batch. Consent is re-checked LIVE here (not from the
+    stale snapshot), so revoking a user's consent before send still protects them.
+    """
+    allowed = settings.allowed_domains
+    with get_session() as session:
+        campaign = session.get(Campaign, cid)
+        if not campaign:
+            return
+        targets = session.exec(
+            select(Target).where(Target.campaign_id == cid, Target.sent_at.is_(None))
+        ).all()
+        for t in targets:
+            user = session.get(User, t.user_id)
+            live_consent = bool(t.consented and user and user.consented)
+            if not live_consent:
+                t.send_error = "skipped: recipient is not marked as consenting"
+                session.add(t)
+                session.commit()
+                continue
+            if allowed and t.email.rsplit("@", 1)[-1].lower() not in allowed:
+                t.send_error = "skipped: recipient domain not in allowlist"
+                session.add(t)
+                session.commit()
+                continue
+            try:
+                await send_campaign_email(campaign, t)
+                t.sent_at = utcnow()
+                t.send_error = ""
+            except Exception as exc:  # noqa: BLE001 - record any send failure per target
+                t.send_error = str(exc)[:500]
+                logger.warning("send failed for target %s (%s): %s", t.id, t.email, exc)
+            session.add(t)
+            session.commit()
+
+        campaign.status = CampaignStatus.SENT
+        session.add(campaign)
+        session.commit()
+
+
 @app.post("/campaigns/{cid}/send")
-async def send_campaign(cid: int):
+def send_campaign(cid: int, background_tasks: BackgroundTasks):
     with get_session() as session:
         campaign = session.get(Campaign, cid)
         if not campaign:
             return HTMLResponse("Campaign not found", status_code=404)
+        # Idempotency guard: never re-send a campaign that is already sent/sending.
+        if campaign.status in (CampaignStatus.SENT, CampaignStatus.SENDING):
+            return RedirectResponse(f"/campaigns/{cid}?notice=already_sent", status_code=303)
+        campaign.status = CampaignStatus.SENDING
         campaign.sent_at = utcnow()
-        campaign.status = CampaignStatus.SENT
         session.add(campaign)
         session.commit()
-        campaign_copy = Campaign(**campaign.model_dump())
-        targets = session.exec(select(Target).where(Target.campaign_id == cid)).all()
-        target_copies = [Target(**t.model_dump()) for t in targets]
 
-    for t in target_copies:
-        try:
-            await send_campaign_email(campaign_copy, t)
-        except PermissionError as e:
-            print(f"[skip] {e}")
-
+    background_tasks.add_task(_run_campaign_send, cid)
     return RedirectResponse(f"/campaigns/{cid}", status_code=303)
 
 
@@ -784,14 +839,16 @@ def export_csv():
     for e in events:
         t = targets.get(e.target_id)
         c = campaigns.get(e.campaign_id)
-        w.writerow([
+        # Attacker-controllable fields (name/email/reason/user_agent) are escaped
+        # against spreadsheet formula injection.
+        w.writerow([_csv_safe(x) for x in (
             e.created_at.isoformat(),
             c.name if c else e.campaign_id,
             t.email if t else e.target_id,
             e.type.value, e.verdict.value, e.reason, e.ip, e.user_agent,
             e.http_method,
             f"{e.seconds_since_send:.1f}" if e.seconds_since_send is not None else "",
-        ])
+        )])
     buf.seek(0)
     return StreamingResponse(
         iter([buf.getvalue()]), media_type="text/csv",

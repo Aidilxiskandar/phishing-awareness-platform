@@ -46,6 +46,10 @@ def _ensure_columns() -> None:
             ("video_url", "VARCHAR DEFAULT ''"),
             ("video_poster", "VARCHAR DEFAULT ''"),
         ],
+        "target": [
+            ("sent_at", "DATETIME"),
+            ("send_error", "VARCHAR DEFAULT ''"),
+        ],
     }
     with engine.begin() as conn:
         for table, cols in wanted.items():
