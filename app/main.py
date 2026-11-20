@@ -23,6 +23,7 @@ import math
 import random
 import re
 import secrets
+from collections import Counter
 from contextlib import asynccontextmanager
 from datetime import UTC
 from pathlib import Path
@@ -37,6 +38,7 @@ from fastapi.responses import (
 )
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func
 from sqlmodel import select
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -315,35 +317,59 @@ def _get_target(session, token: str):
     return target, campaign
 
 
+# Risk-score weights and band thresholds (the product's headline number).
+CLICK_WEIGHT = 3    # a human click = fell for it
+OPEN_WEIGHT = 1
+REPORT_WEIGHT = 2   # reporting is a good habit -> lowers risk
+HIGH_BAND = 6
+MEDIUM_BAND = 3
+
+
+def _risk_band(score: int) -> str:
+    return "High" if score >= HIGH_BAND else "Medium" if score >= MEDIUM_BAND else "Low"
+
+
 def _risk_scores(session) -> list[dict]:
     """Aggregate each user's behaviour across all campaigns into a risk score.
 
     human click = +3 (fell for it), open = +1, report = -2 (good habit).
     Scanner clicks are ignored - they are not the person. Higher = riskier.
+
+    Event tallies are computed with a single grouped SQL query (O(rows), not
+    O(users x events)).
     """
     users = session.exec(select(User)).all()
-    targets = session.exec(select(Target)).all()
-    events = session.exec(select(Event)).all()
-    targets_by_user: dict[int, list[int]] = {}
-    for t in targets:
-        targets_by_user.setdefault(t.user_id, []).append(t.id)
+    target_user = dict(session.exec(select(Target.id, Target.user_id)).all())
+    targets_per_user = Counter(target_user.values())  # one target per campaign
 
-    rows = []
+    opens: Counter[int] = Counter()
+    human: Counter[int] = Counter()
+    reports: Counter[int] = Counter()
+    rows = session.exec(
+        select(Event.target_id, Event.type, Event.verdict, func.count())
+        .group_by(Event.target_id, Event.type, Event.verdict)
+    ).all()
+    for target_id, etype, verdict, n in rows:
+        uid = target_user.get(target_id)
+        if uid is None:
+            continue
+        if etype == EventType.OPEN:
+            opens[uid] += n
+        elif etype == EventType.CLICK and verdict == Verdict.HUMAN:
+            human[uid] += n
+        elif etype == EventType.REPORT:
+            reports[uid] += n
+
+    out = []
     for u in users:
-        tids = set(targets_by_user.get(u.id, []))
-        ev = [e for e in events if e.target_id in tids]
-        opens = sum(1 for e in ev if e.type == EventType.OPEN)
-        human_clicks = sum(1 for e in ev if e.type == EventType.CLICK and e.verdict == Verdict.HUMAN)
-        reports = sum(1 for e in ev if e.type == EventType.REPORT)
-        score = max(0, human_clicks * 3 + opens * 1 - reports * 2)
-        band = "High" if score >= 6 else "Medium" if score >= 3 else "Low"
-        rows.append({
-            "user": u, "campaigns": len(tids), "opens": opens,
-            "human_clicks": human_clicks, "reports": reports,
-            "score": score, "band": band,
+        o, h, r = opens[u.id], human[u.id], reports[u.id]
+        score = max(0, h * CLICK_WEIGHT + o * OPEN_WEIGHT - r * REPORT_WEIGHT)
+        out.append({
+            "user": u, "campaigns": targets_per_user.get(u.id, 0), "opens": o,
+            "human_clicks": h, "reports": r, "score": score, "band": _risk_band(score),
         })
-    rows.sort(key=lambda r: r["score"], reverse=True)
-    return rows
+    out.sort(key=lambda row: row["score"], reverse=True)
+    return out
 
 
 # --- Dashboard --------------------------------------------------------------
@@ -493,18 +519,32 @@ def dashboard(request: Request):
 def phishing(request: Request):
     with get_session() as session:
         campaigns = session.exec(select(Campaign).order_by(Campaign.id.desc())).all()
-        rows = []
-        for c in campaigns:
-            targets = session.exec(select(Target).where(Target.campaign_id == c.id)).all()
-            events = session.exec(select(Event).where(Event.campaign_id == c.id)).all()
-            rows.append({
-                "c": c,
-                "targets": len(targets),
-                "opens": sum(1 for e in events if e.type == EventType.OPEN),
-                "human_clicks": sum(1 for e in events if e.type == EventType.CLICK and e.verdict == Verdict.HUMAN),
-                "scanner_clicks": sum(1 for e in events if e.type == EventType.CLICK and e.verdict == Verdict.SCANNER),
-                "reports": sum(1 for e in events if e.type == EventType.REPORT),
-            })
+        # Grouped counts instead of two queries per campaign (N+1).
+        target_counts = dict(session.exec(
+            select(Target.campaign_id, func.count()).group_by(Target.campaign_id)
+        ).all())
+        opens: Counter[int] = Counter()
+        human: Counter[int] = Counter()
+        scanner: Counter[int] = Counter()
+        reports: Counter[int] = Counter()
+        agg = session.exec(
+            select(Event.campaign_id, Event.type, Event.verdict, func.count())
+            .group_by(Event.campaign_id, Event.type, Event.verdict)
+        ).all()
+        for cid, etype, verdict, n in agg:
+            if etype == EventType.OPEN:
+                opens[cid] += n
+            elif etype == EventType.CLICK and verdict == Verdict.HUMAN:
+                human[cid] += n
+            elif etype == EventType.CLICK and verdict == Verdict.SCANNER:
+                scanner[cid] += n
+            elif etype == EventType.REPORT:
+                reports[cid] += n
+        rows = [{
+            "c": c, "targets": target_counts.get(c.id, 0), "opens": opens[c.id],
+            "human_clicks": human[c.id], "scanner_clicks": scanner[c.id],
+            "reports": reports[c.id],
+        } for c in campaigns]
     return templates.TemplateResponse(request, "phishing.html", {
         "tab": "phishing", "rows": rows, "dry_run": settings.dry_run,
     })
@@ -864,14 +904,16 @@ async def submit_quiz(request: Request, slug: str):
 def reports(request: Request):
     with get_session() as session:
         risk = _risk_scores(session)
-        events = session.exec(select(Event).order_by(Event.id.desc())).all()
+        events = session.exec(
+            select(Event).order_by(Event.id.desc()).limit(200)
+        ).all()
         targets = session.exec(select(Target)).all()
         campaigns = session.exec(select(Campaign)).all()
         audit = session.exec(select(AuditLog).order_by(AuditLog.id.desc()).limit(20)).all()
         target_by_id = {t.id: t for t in targets}
         campaign_by_id = {c.id: c for c in campaigns}
     return templates.TemplateResponse(request, "reports.html", {
-        "tab": "reports", "risk": risk, "events": events[:200], "audit": audit,
+        "tab": "reports", "risk": risk, "events": events, "audit": audit,
         "target_by_id": target_by_id, "campaign_by_id": campaign_by_id, "dry_run": settings.dry_run,
     })
 
