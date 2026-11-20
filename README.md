@@ -92,13 +92,44 @@ and the platform tells them apart.
 ## Tests
 
 ```bash
-pip install pytest
-pytest
+pip install -r requirements-dev.txt
+pytest                 # or: make test
+pytest --cov=app       # coverage
+ruff check app tests   # lint
 ```
 
-`tests/test_detection.py` covers the engine, including the exact case that
-started this: a scanner click must never be counted as a human click, and a real
-browser must be.
+`tests/` covers the detection engine (a scanner click must never be counted as a
+human click), the auth guard, the consent gate, send-flow idempotency, and the
+XSS/CSV hardening — ~70%+ coverage.
+
+## Deployment
+
+The app requires authentication and is production-shaped, but keeps the
+architecture honest for its scale (SQLite + background tasks; no queue/Postgres
+until you actually need them).
+
+### Docker
+
+```bash
+docker compose up --build        # http://localhost:8000  (SQLite persisted in a volume)
+```
+
+### Production configuration
+
+Set these before running in production (the app refuses to boot without them when
+`ENV=prod`):
+
+| Variable | Purpose |
+|---|---|
+| `ENV=prod` | enables fail-fast checks, secure cookies, hides `/docs` |
+| `SECRET_KEY` | session-cookie signing (`python -c "import secrets;print(secrets.token_urlsafe(32))"`) |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | the admin login |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | real email sending (omit for dry-run) |
+| `BASE_URL` | public URL the tracked links point back to |
+| `TRUSTED_PROXIES` | proxy IP(s) whose `X-Forwarded-For` is trusted |
+
+Put the app behind TLS. In dev, login is `admin` / `phishguard-dev` and email is
+dry-run (printed to the console). See `.env.example` for the full list.
 
 ## Roadmap
 

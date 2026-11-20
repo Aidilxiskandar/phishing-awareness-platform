@@ -1,0 +1,29 @@
+# Keep the build context (and image) small and clean.
+.git
+.github
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Local data & secrets
+.env
+*.db
+*.db-wal
+*.db-shm
+*.sqlite3
+
+# Large / reproducible assets (training videos render from the Remotion source)
+app/static/videos/*.mp4
+app/static/videos/*.webm
+video
+
+# Dev-only
+tests
+sample_data
+*.md
+.env.example

@@ -1,0 +1,21 @@
+# Local / small-deployment run. Boots in dev mode (dry-run email, default admin
+# credential). For a real deployment, set ENV=prod and provide SECRET_KEY,
+# ADMIN_PASSWORD and the SMTP_* vars (e.g. via an env_file) — the app refuses to
+# start in prod without them.
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=dev
+      - DATABASE_URL=sqlite:////data/phishing.db
+    # For real config, copy .env.example to .env and uncomment:
+    # env_file:
+    #   - .env
+    volumes:
+      - phishguard-data:/data
+    restart: unless-stopped
+
+volumes:
+  phishguard-data:
