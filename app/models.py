@@ -58,6 +58,9 @@ class User(SQLModel, table=True):
     # marked as consenting.
     consented: bool = False
     created_at: datetime = Field(default_factory=utcnow)
+    # Set when the person exercised their right to erasure; the row is kept only
+    # as an anonymous placeholder so campaign aggregates stay correct.
+    erased_at: datetime | None = None
 
 
 class StaffGroup(SQLModel, table=True):

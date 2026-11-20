@@ -65,6 +65,7 @@ from app.models import (
 from app.sampledata import generate_staff
 from app.services.charts import donut as _donut
 from app.services.charts import trend as _trend
+from app.services.erasure import erase_user
 from app.services.risk import risk_scores as _risk_scores
 from app.services.video import video_info as _video_info
 
@@ -445,7 +446,8 @@ def campaign_detail(request: Request, cid: int, notice: str = ""):
         ).all()
         target_by_id = {t.id: t for t in targets}
         targeted_user_ids = {t.user_id for t in targets}
-        all_users = session.exec(select(User).order_by(User.name)).all()
+        all_users = session.exec(
+            select(User).where(User.erased_at.is_(None)).order_by(User.name)).all()
         available = [u for u in all_users if u.id not in targeted_user_ids]
         groups = session.exec(select(StaffGroup).order_by(StaffGroup.name)).all()
     notice_text = {
@@ -496,7 +498,7 @@ def add_targets(cid: int, user_ids: list[int] = Form(default=[])):
             if uid in existing:
                 continue
             user = session.get(User, uid)
-            if not user:
+            if not user or user.erased_at:
                 continue
             session.add(Target(
                 campaign_id=cid, user_id=user.id, email=user.email, name=user.name,
@@ -517,7 +519,7 @@ def add_group_targets(cid: int, group_id: int = Form(...)):
             if uid in existing:
                 continue
             user = session.get(User, uid)
-            if not user:
+            if not user or user.erased_at:
                 continue
             session.add(Target(
                 campaign_id=cid, user_id=user.id, email=user.email, name=user.name,
@@ -603,8 +605,17 @@ def _get_or_create_group(session, name: str, description: str = "") -> StaffGrou
     return g
 
 
+_USERS_NOTICES = {
+    "erased": "Personal data erased. The person is now an anonymous placeholder "
+              "and old tracking links no longer work.",
+    "not_found": "That user no longer exists.",
+    "invalid_email": "That doesn't look like a valid email address.",
+}
+
+
 @app.get("/users", response_class=HTMLResponse)
-def users_page(request: Request, group: int | None = None):
+def users_page(request: Request, group: int | None = None, notice: str = "",
+               error: str = ""):
     with get_session() as session:
         groups = session.exec(select(StaffGroup).order_by(StaffGroup.name)).all()
         links = session.exec(select(StaffGroupLink)).all()
@@ -620,10 +631,13 @@ def users_page(request: Request, group: int | None = None):
         if group:
             member_ids = members_by_group.get(group, set())
             users = session.exec(
-                select(User).where(User.id.in_(member_ids)).order_by(User.name)
+                select(User).where(User.id.in_(member_ids), User.erased_at.is_(None))
+                .order_by(User.name)
             ).all() if member_ids else []
         else:
-            users = session.exec(select(User).order_by(User.id.desc())).all()
+            users = session.exec(
+                select(User).where(User.erased_at.is_(None)).order_by(User.id.desc())
+            ).all()
 
         group_rows = [{"g": g, "count": len(members_by_group.get(g.id, set()))} for g in groups]
         active_group = next((g for g in groups if g.id == group), None)
@@ -631,6 +645,7 @@ def users_page(request: Request, group: int | None = None):
         "tab": "users", "users": users, "groups": groups,
         "group_rows": group_rows, "groups_by_user": groups_by_user,
         "active_group": active_group, "total_users": len(users),
+        "notice": _USERS_NOTICES.get(notice or error, ""),
         "dry_run": settings.dry_run,
     })
 
@@ -677,6 +692,20 @@ def seed_users(request: Request, count: int = Form(300)):
         session.commit()
     _record_audit(request, "users.seed", f"generated {count} staff")
     return RedirectResponse("/users", status_code=303)
+
+
+@app.post("/users/{uid}/erase")
+def erase_user_route(request: Request, uid: int):
+    """Right to erasure: anonymise the person and scrub their PII everywhere."""
+    with get_session() as session:
+        counts = erase_user(session, uid)
+    if counts is None:
+        return RedirectResponse("/users?error=not_found", status_code=303)
+    # Log the id only: recording the email here would undo the erasure.
+    _record_audit(request, "user.erase",
+                  f"user #{uid} erased ({counts['targets']} target(s), "
+                  f"{counts['events']} event(s) scrubbed)")
+    return RedirectResponse("/users?notice=erased", status_code=303)
 
 
 @app.post("/groups")

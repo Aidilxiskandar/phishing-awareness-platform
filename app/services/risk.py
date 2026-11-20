@@ -32,7 +32,7 @@ def risk_scores(session: Session) -> list[dict]:
     Event tallies come from a single grouped SQL query (O(rows), not
     O(users x events)).
     """
-    users = session.exec(select(User)).all()
+    users = session.exec(select(User).where(User.erased_at.is_(None))).all()
     target_user = dict(session.exec(select(Target.id, Target.user_id)).all())
     targets_per_user = Counter(target_user.values())  # one target per campaign
 

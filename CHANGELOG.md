@@ -5,6 +5,11 @@ semantic.
 
 ## [Unreleased]
 ### Added
+- **Right to erasure** (GDPR Art. 17 / PDPA): per-user Erase action on the Users
+  tab and `python -m app.maintenance erase EMAIL`. Anonymises the person across
+  users, targets, events (IP/UA), quiz results, groups and audit history; rotates
+  tracking tokens; keeps campaign aggregates intact. Alembic migration adds
+  `user.erased_at`.
 - **Deployment**: multi-stage `Dockerfile` (Python 3.12, non-root, healthcheck),
   `docker-compose.yml` with a persistent SQLite volume, `.dockerignore`, `Makefile`,
   `LICENSE` (MIT + ethical-use notice), and this changelog.

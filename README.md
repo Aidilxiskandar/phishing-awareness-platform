@@ -143,6 +143,21 @@ alembic revision --autogenerate -m "describe change"   # after a model change
 
 When an `alembic_version` table exists, the app leaves schema creation to Alembic.
 
+### Privacy: retention & right to erasure
+
+```bash
+python -m app.maintenance                      # purge events older than RETENTION_DAYS
+python -m app.maintenance erase person@corp.com  # erase one person (GDPR Art. 17 / PDPA)
+```
+
+Erasure is also an **Erase** button per row on the Users tab. It anonymises
+rather than deletes: the person becomes an `erased-<id>@erased.invalid`
+placeholder, their name/department/consent are cleared, IP + user-agent are wiped
+from their events, quiz results are unlinked, group memberships are removed,
+earlier audit entries mentioning their email are redacted, and their tracking
+tokens are rotated so links in already-delivered emails stop working. Campaign
+totals stay correct, and the erasure itself is audited by user id only.
+
 ## Roadmap
 
 - **MVP (done):** campaigns, tracked send, open pixel, click classification, JS
