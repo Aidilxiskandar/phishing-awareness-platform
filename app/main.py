@@ -20,16 +20,24 @@ import csv
 import io
 import math
 import secrets
-from datetime import timezone
-
+from contextlib import asynccontextmanager
+from datetime import UTC
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlmodel import select
+from starlette.middleware.sessions import SessionMiddleware
 
+from app import security
 from app.config import settings
 from app.database import get_session, init_db
 from app.detection import ClickSignals, classify
@@ -51,14 +59,107 @@ from app.models import (
 )
 from app.sampledata import generate_staff
 
-app = FastAPI(title="Phishing Awareness Platform")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    problems = settings.validate_for_runtime()
+    if problems:
+        raise RuntimeError("Fatal configuration error(s): " + "; ".join(problems))
+    init_db()
+    yield
+
+
+app = FastAPI(
+    title="PhishGuard — Phishing Awareness Platform",
+    version="2.3.0",
+    lifespan=lifespan,
+    # Hide the interactive API schema in production.
+    docs_url=None if settings.is_prod else "/docs",
+    redoc_url=None if settings.is_prod else "/redoc",
+    openapi_url=None if settings.is_prod else "/openapi.json",
+)
 
 # Self-hosted static assets (training videos, posters, etc.).
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 (STATIC_DIR / "videos").mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-templates = Jinja2Templates(directory="app/templates")
+# Templates live next to this module; resolve absolutely so the app works from
+# any working directory.
+templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
+
+
+# --- Request guard: deny-by-default auth + CSRF + security headers -----------
+
+@app.middleware("http")
+async def _guard(request: Request, call_next):
+    path = request.url.path
+    if not security.is_public_path(path):
+        if not security.is_authenticated(request):
+            if request.method == "GET":
+                nxt = security.safe_next(path)
+                return RedirectResponse(f"/login?next={nxt}", status_code=303)
+            return Response("Authentication required", status_code=401)
+        if request.method in security.STATE_CHANGING and not security.csrf_ok(request):
+            return Response("CSRF check failed", status_code=403)
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    if settings.is_prod:
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+    return response
+
+
+# SessionMiddleware is added AFTER the guard so it wraps it (runs first) and
+# request.session is populated before the guard reads it.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.effective_secret_key,
+    same_site="lax",
+    https_only=settings.is_prod,
+)
+
+
+# --- Auth & health routes ----------------------------------------------------
+
+@app.get("/login", response_class=HTMLResponse)
+def login_form(request: Request, next: str = "/"):
+    return templates.TemplateResponse("login.html", {
+        "request": request, "next": security.safe_next(next), "error": None,
+        "tab": None, "dry_run": settings.dry_run,
+    })
+
+
+@app.post("/login", response_class=HTMLResponse)
+def login(request: Request, username: str = Form(...), password: str = Form(...),
+          next: str = Form("/")):
+    if not security.verify_credentials(username, password):
+        return templates.TemplateResponse("login.html", {
+            "request": request, "next": security.safe_next(next),
+            "error": "Invalid username or password.", "tab": None,
+            "dry_run": settings.dry_run,
+        }, status_code=401)
+    request.session["admin"] = settings.admin_username
+    return RedirectResponse(security.safe_next(next), status_code=303)
+
+
+@app.get("/logout")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse("/login", status_code=303)
+
+
+@app.get("/health")
+def health():
+    """Liveness/readiness probe: confirms the app and DB respond."""
+    try:
+        with get_session() as session:
+            session.exec(select(User.id).limit(1)).all()
+        return {"status": "ok"}
+    except Exception:
+        return JSONResponse({"status": "degraded"}, status_code=503)
 
 
 def _video_info(module) -> dict | None:
@@ -110,18 +211,20 @@ _PIXEL = base64.b64decode(
 )
 
 
-@app.on_event("startup")
-def _startup() -> None:
-    init_db()
-
-
 # --- helpers ----------------------------------------------------------------
 
 def _client_ip(request: Request) -> str:
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    return request.client.host if request.client else ""
+    """Resolve the client IP, trusting X-Forwarded-For only from configured proxies.
+
+    Otherwise anyone could forge the IP written into the evidence log by sending
+    their own X-Forwarded-For header.
+    """
+    peer = request.client.host if request.client else ""
+    if peer in settings.trusted_proxy_set:
+        fwd = request.headers.get("x-forwarded-for")
+        if fwd:
+            return fwd.split(",")[0].strip()
+    return peer
 
 
 def _seconds_since_send(campaign: Campaign) -> float | None:
@@ -129,7 +232,7 @@ def _seconds_since_send(campaign: Campaign) -> float | None:
         return None
     sent = campaign.sent_at
     if sent.tzinfo is None:
-        sent = sent.replace(tzinfo=timezone.utc)
+        sent = sent.replace(tzinfo=UTC)
     return (utcnow() - sent).total_seconds()
 
 

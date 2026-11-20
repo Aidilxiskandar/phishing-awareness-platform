@@ -19,15 +19,14 @@ raw signals, so a result can always be defended with evidence instead of "trust 
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class EventType(str, Enum):
@@ -49,7 +48,7 @@ class CampaignStatus(str, Enum):
 
 
 class User(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     name: str = ""
     email: str = Field(index=True, unique=True)
     department: str = ""
@@ -61,7 +60,7 @@ class User(SQLModel, table=True):
 class StaffGroup(SQLModel, table=True):
     """A bucket for organising staff, e.g. 'New staff' or 'Failed phishing - Nov'.
     A user can belong to many groups (see StaffGroupLink)."""
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True, unique=True)
     description: str = ""
     created_at: datetime = Field(default_factory=utcnow)
@@ -74,18 +73,18 @@ class StaffGroupLink(SQLModel, table=True):
 
 
 class Campaign(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     name: str
     from_name: str = "IT Security"
     from_email: str = "it-security@example.com"
     subject: str = "Action required: verify your account"
     status: CampaignStatus = Field(default=CampaignStatus.DRAFT)
     created_at: datetime = Field(default_factory=utcnow)
-    sent_at: Optional[datetime] = None
+    sent_at: datetime | None = None
 
 
 class Target(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     campaign_id: int = Field(foreign_key="campaign.id", index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     # Snapshot of the person at the time they were added to this campaign.
@@ -96,7 +95,7 @@ class Target(SQLModel, table=True):
 
 
 class Event(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     target_id: int = Field(foreign_key="target.id", index=True)
     campaign_id: int = Field(foreign_key="campaign.id", index=True)
     type: EventType
@@ -111,11 +110,11 @@ class Event(SQLModel, table=True):
     verdict: Verdict = Field(default=Verdict.UNKNOWN)
     reason: str = ""
     # Seconds between the campaign send and this event (helps spot sub-second scans).
-    seconds_since_send: Optional[float] = None
+    seconds_since_send: float | None = None
 
 
 class TrainingModule(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     slug: str = Field(index=True, unique=True)
     title: str
     summary: str = ""
@@ -128,7 +127,7 @@ class TrainingModule(SQLModel, table=True):
 
 
 class TrainingQuestion(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     module_id: int = Field(foreign_key="trainingmodule.id", index=True)
     prompt: str
     choices_json: str = "[]"   # JSON-encoded list[str]
@@ -144,10 +143,10 @@ class TrainingQuestion(SQLModel, table=True):
 
 
 class QuizResult(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     module_id: int = Field(foreign_key="trainingmodule.id", index=True)
     token: str = ""            # ties the attempt back to a Target/User if available
-    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    user_id: int | None = Field(default=None, foreign_key="user.id")
     score: int = 0
     total: int = 0
     created_at: datetime = Field(default_factory=utcnow)

@@ -2,11 +2,30 @@
 import json
 from pathlib import Path
 
+from sqlalchemy import event, text
 from sqlmodel import Session, SQLModel, create_engine, select
-from sqlalchemy import text
+
+from app.config import settings
 
 DB_PATH = Path(__file__).resolve().parent.parent / "phishing.db"
-engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread": False})
+DB_URL = settings.database_url or f"sqlite:///{DB_PATH}"
+_is_sqlite = DB_URL.startswith("sqlite")
+engine = create_engine(
+    DB_URL,
+    connect_args={"check_same_thread": False} if _is_sqlite else {},
+)
+
+
+if _is_sqlite:
+    @event.listens_for(engine, "connect")
+    def _sqlite_pragmas(dbapi_conn, _record):  # noqa: ANN001
+        # WAL lets readers and a writer run concurrently; busy_timeout waits instead
+        # of raising "database is locked" when the single writer lock is held.
+        cur = dbapi_conn.cursor()
+        cur.execute("PRAGMA journal_mode=WAL")
+        cur.execute("PRAGMA busy_timeout=5000")
+        cur.execute("PRAGMA foreign_keys=ON")
+        cur.close()
 
 
 def init_db() -> None:

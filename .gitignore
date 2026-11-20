@@ -4,6 +4,8 @@
 # Database
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 *.sqlite3
 
 # Python
@@ -29,3 +31,7 @@ video/.remotion/
 # Self-hosted training videos (large binaries; produced locally)
 app/static/videos/*.mp4
 app/static/videos/*.webm
+
+# coverage
+.coverage
+htmlcov/

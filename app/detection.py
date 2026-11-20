@@ -21,9 +21,7 @@ unit test (see tests/test_detection.py) and to explain in an interview.
 """
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
-from typing import Optional
 
 # --- Known automated agents -------------------------------------------------
 # Email security gateways, link-rewriters, and preview bots that fetch URLs
@@ -65,8 +63,8 @@ class ClickSignals:
     """Everything we know about a single click, framework-agnostic."""
     user_agent: str = ""
     http_method: str = "GET"
-    seconds_since_send: Optional[float] = None
-    headers: Optional[dict] = None          # lower-cased header name -> value
+    seconds_since_send: float | None = None
+    headers: dict | None = None          # lower-cased header name -> value
     js_confirmed: bool = False              # landing page JS beacon fired
 
 
@@ -77,7 +75,7 @@ class Classification:
     confidence: float     # 0.0 - 1.0
 
 
-def _match_scanner_ua(ua: str) -> Optional[str]:
+def _match_scanner_ua(ua: str) -> str | None:
     low = ua.lower()
     for pat in SCANNER_UA_PATTERNS:
         if pat in low:
@@ -90,7 +88,7 @@ def _looks_like_browser(ua: str) -> bool:
     return any(h in low for h in BROWSER_UA_HINTS)
 
 
-def _prefetch_reason(headers: Optional[dict]) -> Optional[str]:
+def _prefetch_reason(headers: dict | None) -> str | None:
     if not headers:
         return None
     for name, bad_values in PREFETCH_HEADER_HINTS.items():
