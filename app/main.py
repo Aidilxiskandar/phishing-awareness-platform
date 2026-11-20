@@ -20,6 +20,8 @@ import csv
 import io
 import logging
 import math
+import random
+import re
 import secrets
 from contextlib import asynccontextmanager
 from datetime import UTC
@@ -44,6 +46,7 @@ from app.database import get_session, init_db
 from app.detection import ClickSignals, classify
 from app.mailer import build_tracking_urls, render_email_html, send_campaign_email
 from app.models import (
+    AuditLog,
     Campaign,
     CampaignStatus,
     Event,
@@ -62,6 +65,25 @@ from app.sampledata import generate_staff
 
 logger = logging.getLogger("phishguard")
 
+# Pragmatic email check (not full RFC 5322): one @, a dotted domain, no spaces.
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _record_audit(request: Request, action: str, detail: str = "") -> None:
+    """Append an audit entry for a privileged admin action (best-effort)."""
+    try:
+        actor = request.session.get("admin", "?")
+    except (AssertionError, KeyError):
+        actor = "?"
+    try:
+        with get_session() as session:
+            session.add(AuditLog(actor=actor, action=action,
+                                 detail=detail[:300], ip=_client_ip(request)))
+            session.commit()
+        logger.info("audit action=%s actor=%s detail=%s", action, actor, detail[:120])
+    except Exception:
+        logger.exception("audit write failed for action=%s", action)
+
 
 def _csv_safe(value) -> str:
     """Neutralise CSV formula injection: a cell starting with = + - @ (or a tab/CR
@@ -72,18 +94,33 @@ def _csv_safe(value) -> str:
     return s
 
 
+def _configure_logging() -> None:
+    # Structured-ish single-line logs with a timestamp, level, logger and message.
+    # Idempotent: only installs a handler once.
+    root = logging.getLogger()
+    if not any(getattr(h, "_phishguard", False) for h in root.handlers):
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter(
+            "%(asctime)s %(levelname)s %(name)s %(message)s"))
+        handler._phishguard = True  # type: ignore[attr-defined]
+        root.addHandler(handler)
+    root.setLevel(logging.INFO)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    _configure_logging()
     problems = settings.validate_for_runtime()
     if problems:
         raise RuntimeError("Fatal configuration error(s): " + "; ".join(problems))
     init_db()
+    logger.info("startup env=%s dry_run=%s", settings.env, settings.dry_run)
     yield
 
 
 app = FastAPI(
     title="PhishGuard — Phishing Awareness Platform",
-    version="2.3.0",
+    version="2.4.0",
     lifespan=lifespan,
     # Hide the interactive API schema in production.
     docs_url=None if settings.is_prod else "/docs",
@@ -105,6 +142,8 @@ templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "tem
 
 @app.middleware("http")
 async def _guard(request: Request, call_next):
+    request_id = secrets.token_hex(8)
+    request.state.request_id = request_id
     path = request.url.path
     if not security.is_public_path(path):
         if not security.is_authenticated(request):
@@ -113,8 +152,10 @@ async def _guard(request: Request, call_next):
                 return RedirectResponse(f"/login?next={nxt}", status_code=303)
             return Response("Authentication required", status_code=401)
         if request.method in security.STATE_CHANGING and not security.csrf_ok(request):
+            logger.warning("csrf_block rid=%s path=%s", request_id, path)
             return Response("CSRF check failed", status_code=403)
     response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
@@ -148,12 +189,14 @@ def login_form(request: Request, next: str = "/"):
 def login(request: Request, username: str = Form(...), password: str = Form(...),
           next: str = Form("/")):
     if not security.verify_credentials(username, password):
+        logger.warning("login_failed user=%s ip=%s", username, _client_ip(request))
         return templates.TemplateResponse(request, "login.html", {
             "next": security.safe_next(next),
             "error": "Invalid username or password.", "tab": None,
             "dry_run": settings.dry_run,
         }, status_code=401)
     request.session["admin"] = settings.admin_username
+    _record_audit(request, "login", f"admin '{username}' signed in")
     return RedirectResponse(security.safe_next(next), status_code=303)
 
 
@@ -468,13 +511,14 @@ def phishing(request: Request):
 
 
 @app.post("/campaigns")
-def create_campaign(name: str = Form(...), subject: str = Form(...),
+def create_campaign(request: Request, name: str = Form(...), subject: str = Form(...),
                     from_name: str = Form(...), from_email: str = Form(...)):
     with get_session() as session:
         c = Campaign(name=name, subject=subject, from_name=from_name, from_email=from_email)
         session.add(c)
         session.commit()
         cid = c.id
+    _record_audit(request, "campaign.create", f"#{cid} '{name}'")
     return RedirectResponse(f"/campaigns/{cid}", status_code=303)
 
 
@@ -617,7 +661,7 @@ async def _run_campaign_send(cid: int) -> None:
 
 
 @app.post("/campaigns/{cid}/send")
-def send_campaign(cid: int, background_tasks: BackgroundTasks):
+def send_campaign(request: Request, cid: int, background_tasks: BackgroundTasks):
     with get_session() as session:
         campaign = session.get(Campaign, cid)
         if not campaign:
@@ -629,7 +673,9 @@ def send_campaign(cid: int, background_tasks: BackgroundTasks):
         campaign.sent_at = utcnow()
         session.add(campaign)
         session.commit()
+        n_targets = len(session.exec(select(Target).where(Target.campaign_id == cid)).all())
 
+    _record_audit(request, "campaign.send", f"#{cid} to {n_targets} target(s)")
     background_tasks.add_task(_run_campaign_send, cid)
     return RedirectResponse(f"/campaigns/{cid}", status_code=303)
 
@@ -679,19 +725,23 @@ def users_page(request: Request, group: int | None = None):
 
 
 @app.post("/users")
-def add_user(email: str = Form(...), name: str = Form(""),
+def add_user(request: Request, email: str = Form(...), name: str = Form(""),
              department: str = Form(""), consented: str = Form("off")):
+    email = email.strip()
+    if not _EMAIL_RE.match(email):
+        return RedirectResponse("/users?error=invalid_email", status_code=303)
     with get_session() as session:
         exists = session.exec(select(User).where(User.email == email)).first()
         if not exists:
-            session.add(User(email=email, name=name, department=department,
+            session.add(User(email=email, name=name[:120], department=department[:120],
                              consented=(consented == "on")))
             session.commit()
+            _record_audit(request, "user.add", f"{email} consented={consented == 'on'}")
     return RedirectResponse("/users", status_code=303)
 
 
 @app.post("/users/seed")
-def seed_users(count: int = Form(300)):
+def seed_users(request: Request, count: int = Form(300)):
     count = max(1, min(count, 2000))  # sane bounds
     with get_session() as session:
         existing = {u.email for u in session.exec(select(User)).all()}
@@ -708,13 +758,13 @@ def seed_users(count: int = Form(300)):
                                          "Joined recently - prioritise for awareness training.")
         failed = _get_or_create_group(session, "Failed phishing - this month",
                                       "Clicked a simulated phish and need a follow-up.")
-        import random
         for u in created:
             if random.random() < 0.15:
                 session.add(StaffGroupLink(user_id=u.id, group_id=new_staff.id))
             if random.random() < 0.10:
                 session.add(StaffGroupLink(user_id=u.id, group_id=failed.id))
         session.commit()
+    _record_audit(request, "users.seed", f"generated {count} staff")
     return RedirectResponse("/users", status_code=303)
 
 
@@ -817,16 +867,18 @@ def reports(request: Request):
         events = session.exec(select(Event).order_by(Event.id.desc())).all()
         targets = session.exec(select(Target)).all()
         campaigns = session.exec(select(Campaign)).all()
+        audit = session.exec(select(AuditLog).order_by(AuditLog.id.desc()).limit(20)).all()
         target_by_id = {t.id: t for t in targets}
         campaign_by_id = {c.id: c for c in campaigns}
     return templates.TemplateResponse(request, "reports.html", {
-        "tab": "reports", "risk": risk, "events": events[:200],
+        "tab": "reports", "risk": risk, "events": events[:200], "audit": audit,
         "target_by_id": target_by_id, "campaign_by_id": campaign_by_id, "dry_run": settings.dry_run,
     })
 
 
 @app.get("/reports/export.csv")
-def export_csv():
+def export_csv(request: Request):
+    _record_audit(request, "users.export", "evidence CSV downloaded")
     with get_session() as session:
         events = session.exec(select(Event).order_by(Event.id)).all()
         targets = {t.id: t for t in session.exec(select(Target)).all()}

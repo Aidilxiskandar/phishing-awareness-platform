@@ -58,4 +58,27 @@
   {% endif %}
 </div>
 
+<div class="card">
+  <h2>Admin activity (audit trail)</h2>
+  <p style="color:var(--muted);font-size:13px;margin-top:-6px">
+    Who did what, from where — a record of privileged actions (login, campaign
+    create/send, user add, export).</p>
+  {% if audit %}
+  <table>
+    <tr><th>When (UTC)</th><th>Admin</th><th>Action</th><th>Detail</th><th>IP</th></tr>
+    {% for a in audit %}
+    <tr>
+      <td>{{ a.created_at.strftime('%m-%d %H:%M:%S') }}</td>
+      <td>{{ a.actor }}</td>
+      <td><span class="pill unknown">{{ a.action }}</span></td>
+      <td>{{ a.detail }}</td>
+      <td><code>{{ a.ip }}</code></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:var(--muted)">No admin activity recorded yet.</p>
+  {% endif %}
+</div>
+
 {% endblock %}

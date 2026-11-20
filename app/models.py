@@ -148,6 +148,20 @@ class TrainingQuestion(SQLModel, table=True):
             return []
 
 
+class AuditLog(SQLModel, table=True):
+    """An append-only record of privileged admin actions (who did what, when).
+
+    For a tool that sends phishing mail and holds staff PII, an audit trail is a
+    compliance expectation, not a nicety.
+    """
+    id: int | None = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    actor: str = ""            # admin username
+    action: str = ""           # e.g. "login", "campaign.send", "users.export"
+    detail: str = ""           # human-readable context
+    ip: str = ""
+
+
 class QuizResult(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     module_id: int = Field(foreign_key="trainingmodule.id", index=True)
