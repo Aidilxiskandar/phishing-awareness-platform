@@ -19,7 +19,6 @@ import base64
 import csv
 import io
 import logging
-import math
 import random
 import re
 import secrets
@@ -64,6 +63,10 @@ from app.models import (
     utcnow,
 )
 from app.sampledata import generate_staff
+from app.services.charts import donut as _donut
+from app.services.charts import trend as _trend
+from app.services.risk import risk_scores as _risk_scores
+from app.services.video import video_info as _video_info
 
 logger = logging.getLogger("phishguard")
 
@@ -219,31 +222,6 @@ def health():
         return JSONResponse({"status": "degraded"}, status_code=503)
 
 
-def _video_info(module) -> dict | None:
-    """Resolve a module's video into render-ready info for the template.
-
-    Supports local files served from /static (native <video>) and YouTube/Vimeo
-    links (embedded iframe). For a local file we also report whether it exists on
-    disk yet, so the page can show a tidy 'drop your clip here' placeholder until
-    the real video is added.
-    """
-    url = (module.video_url or "").strip()
-    if not url:
-        return None
-    low = url.lower()
-    if "youtube.com/watch" in low or "youtu.be/" in low or "youtube.com/embed" in low:
-        vid = url.split("v=")[-1].split("&")[0] if "watch" in low else url.rstrip("/").split("/")[-1]
-        return {"kind": "youtube", "embed": f"https://www.youtube.com/embed/{vid}", "ready": True, "url": url}
-    if "vimeo.com" in low:
-        vid = url.rstrip("/").split("/")[-1]
-        return {"kind": "vimeo", "embed": f"https://player.vimeo.com/video/{vid}", "ready": True, "url": url}
-    # Treat anything else as a (local) file source.
-    ready = True
-    if url.startswith("/static/"):
-        ready = (STATIC_DIR.parent / url.lstrip("/")).exists()
-    return {"kind": "file", "url": url, "ready": ready, "poster": (module.video_poster or "").strip()}
-
-
 def humandur(seconds: float | None) -> str:
     """Render 'seconds since send' as a readable duration: 7.2s, 56m, 1h 12m."""
     if seconds is None:
@@ -317,114 +295,7 @@ def _get_target(session, token: str):
     return target, campaign
 
 
-# Risk-score weights and band thresholds (the product's headline number).
-CLICK_WEIGHT = 3    # a human click = fell for it
-OPEN_WEIGHT = 1
-REPORT_WEIGHT = 2   # reporting is a good habit -> lowers risk
-HIGH_BAND = 6
-MEDIUM_BAND = 3
-
-
-def _risk_band(score: int) -> str:
-    return "High" if score >= HIGH_BAND else "Medium" if score >= MEDIUM_BAND else "Low"
-
-
-def _risk_scores(session) -> list[dict]:
-    """Aggregate each user's behaviour across all campaigns into a risk score.
-
-    human click = +3 (fell for it), open = +1, report = -2 (good habit).
-    Scanner clicks are ignored - they are not the person. Higher = riskier.
-
-    Event tallies are computed with a single grouped SQL query (O(rows), not
-    O(users x events)).
-    """
-    users = session.exec(select(User)).all()
-    target_user = dict(session.exec(select(Target.id, Target.user_id)).all())
-    targets_per_user = Counter(target_user.values())  # one target per campaign
-
-    opens: Counter[int] = Counter()
-    human: Counter[int] = Counter()
-    reports: Counter[int] = Counter()
-    rows = session.exec(
-        select(Event.target_id, Event.type, Event.verdict, func.count())
-        .group_by(Event.target_id, Event.type, Event.verdict)
-    ).all()
-    for target_id, etype, verdict, n in rows:
-        uid = target_user.get(target_id)
-        if uid is None:
-            continue
-        if etype == EventType.OPEN:
-            opens[uid] += n
-        elif etype == EventType.CLICK and verdict == Verdict.HUMAN:
-            human[uid] += n
-        elif etype == EventType.REPORT:
-            reports[uid] += n
-
-    out = []
-    for u in users:
-        o, h, r = opens[u.id], human[u.id], reports[u.id]
-        score = max(0, h * CLICK_WEIGHT + o * OPEN_WEIGHT - r * REPORT_WEIGHT)
-        out.append({
-            "user": u, "campaigns": targets_per_user.get(u.id, 0), "opens": o,
-            "human_clicks": h, "reports": r, "score": score, "band": _risk_band(score),
-        })
-    out.sort(key=lambda row: row["score"], reverse=True)
-    return out
-
-
 # --- Dashboard --------------------------------------------------------------
-
-def _donut(segments: list[dict], r: int = 54) -> dict:
-    """Precompute stroke-dasharray geometry for an SVG donut chart.
-
-    Each segment becomes a full circle whose visible arc is `dash` long,
-    offset so the segments sit end to end. Rendered with a rotate(-90) so the
-    first segment starts at 12 o'clock.
-    """
-    circ = 2 * math.pi * r
-    total = sum(s["value"] for s in segments)
-    out, offset = [], 0.0
-    for s in segments:
-        frac = (s["value"] / total) if total else 0.0
-        dash = frac * circ
-        out.append({
-            **s,
-            "dash": round(dash, 2),
-            "gap": round(circ - dash, 2),
-            "offset": round(-offset, 2),
-            "pct": round(frac * 100),
-        })
-        offset += dash
-    return {"segments": out, "circ": round(circ, 2), "r": r, "total": total}
-
-
-def _trend(series: list[dict], w: int = 560, h: int = 170) -> dict:
-    """Precompute polyline points + area path for the phish-prone % line chart.
-
-    series: ordered list of {"name": str, "rate": float} (one point per campaign).
-    """
-    pad_l, pad_r, pad_t, pad_b = 12, 12, 16, 22
-    pw, ph = w - pad_l - pad_r, h - pad_t - pad_b
-    n = len(series)
-    top = max(10, math.ceil((max((s["rate"] for s in series), default=0) or 10) / 10) * 10)
-    pts = []
-    for i, s in enumerate(series):
-        x = pad_l + (pw * i / (n - 1) if n > 1 else pw / 2)
-        y = pad_t + ph * (1 - s["rate"] / top)
-        pts.append({"x": round(x, 1), "y": round(y, 1), **s})
-    poly = " ".join(f'{p["x"]},{p["y"]}' for p in pts)
-    if pts:
-        base = pad_t + ph
-        area = (f'M {pts[0]["x"]},{base} '
-                + " ".join(f'L {p["x"]},{p["y"]}' for p in pts)
-                + f' L {pts[-1]["x"]},{base} Z')
-    else:
-        area = ""
-    gridlines = [{"y": round(pad_t + ph * (1 - frac), 1), "val": round(top * frac)}
-                 for frac in (0, 0.5, 1)]
-    return {"w": w, "h": h, "points": poly, "area": area, "pts": pts,
-            "top": top, "base": round(pad_t + ph, 1), "gridlines": gridlines}
-
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request):
