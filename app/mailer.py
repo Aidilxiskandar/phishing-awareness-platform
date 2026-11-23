@@ -43,15 +43,28 @@ def render_email_html(campaign: Campaign, target: Target, preview: bool = False)
     click_href = "#" if preview else urls["click"]
     pixel = "" if preview else (
         f'<img src="{urls["open_pixel"]}" width="1" height="1" alt="" style="display:none;">')
+
+    # Body: the campaign's (template-derived or custom) text, or the built-in
+    # default. Escaped and split into paragraphs so a template can never inject
+    # its own markup or links — the only link is the tracked CTA button below.
+    default_body = (
+        "We detected unusual sign-in activity on your account. Please verify your "
+        "identity within 24 hours to avoid suspension."
+    )
+    raw_body = (campaign.body or "").strip() or default_body
+    paragraphs = "\n".join(
+        f"  <p>{html.escape(block.strip())}</p>"
+        for block in raw_body.split("\n\n") if block.strip()
+    )
+    cta_label = html.escape((campaign.cta_label or "").strip() or "Verify my account")
     return f"""\
 <html><body style="font-family:Arial,sans-serif;color:#222;margin:0;padding:20px;background:#f4f5f7;">
   <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:28px;">
   <p>{greeting}</p>
-  <p>We detected unusual sign-in activity on your account. Please verify your
-     identity within 24 hours to avoid suspension.</p>
+{paragraphs}
   <p><a href="{click_href}"
         style="background:#2563eb;color:#fff;padding:10px 18px;
-               text-decoration:none;border-radius:6px;display:inline-block;">Verify my account</a></p>
+               text-decoration:none;border-radius:6px;display:inline-block;">{cta_label}</a></p>
   <p style="font-size:12px;color:#888;">If you did not request this, you can
      ignore this email.</p>
   </div>
