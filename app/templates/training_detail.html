@@ -2,7 +2,7 @@
 {% block title %}{{ module.title }}{% endblock %}
 {% block content %}
 
-<p style="margin-top:0"><a href="/training" style="color:var(--muted)">← All modules</a></p>
+<p style="margin-top:0"><a class="back" href="/training">← All modules</a></p>
 
 {% if video %}
 <div class="card" style="padding:0;overflow:hidden">
@@ -22,7 +22,7 @@
     <div class="vplaceholder">
       <div class="vph-play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
       <div class="vph-title">Training video</div>
-      <div class="vph-sub">Drop your clip at <code>{{ video.url }}</code> — it plays here automatically once the file exists.</div>
+      <div class="vph-sub">Drop your clip at <code>{{ video.url }}</code> and it plays here automatically once the file exists.</div>
     </div>
   {% endif %}
 </div>
@@ -30,8 +30,8 @@
 
 <div class="card">
   <h2>{{ module.title }}</h2>
-  <p style="color:var(--muted);margin-top:-6px">{{ module.summary }}</p>
-  <ul style="line-height:1.8;color:#cbd5e1">
+  <p style="color:var(--muted)">{{ module.summary }}</p>
+  <ul style="line-height:28px;color:var(--ink);padding-left:20px;margin:0">
     {% for b in bullets %}<li>{{ b }}</li>{% endfor %}
   </ul>
 </div>
@@ -40,10 +40,10 @@
 <div class="card">
   <h2>Your result</h2>
   {% if result.score == result.total %}
-    <p class="metric" style="color:var(--green)">{{ result.score }}/{{ result.total }} — perfect 🎉</p>
+    <p class="metric" style="color:var(--green);display:inline-block">{{ result.score }}/{{ result.total }}<small>All correct</small></p>
     <p style="color:var(--muted)">You've got the key signals down. Nicely done.</p>
   {% else %}
-    <p class="metric" style="color:var(--amber)">{{ result.score }}/{{ result.total }}</p>
+    <p class="metric" style="display:inline-block">{{ result.score }}/{{ result.total }}<small>Correct answers</small></p>
     <p style="color:var(--muted)">Worth a re-read of the points above, then try again.</p>
   {% endif %}
   <a class="btn" href="/training/{{ module.slug }}{{ ('?token=' ~ token) if token }}">Retake quiz</a>
@@ -54,10 +54,10 @@
   <form method="post" action="/training/{{ module.slug }}/quiz">
     <input type="hidden" name="token" value="{{ token }}">
     {% for q in questions %}
-    <div style="margin-bottom:18px">
-      <p style="font-weight:600;margin:0 0 8px">{{ loop.index }}. {{ q.prompt }}</p>
+    <div style="margin-bottom:20px">
+      <p style="font-weight:500;margin:0 0 8px">{{ loop.index }}. {{ q.prompt }}</p>
       {% for choice in q.choices %}
-      <label style="display:block;margin:4px 0;color:#cbd5e1;cursor:pointer">
+      <label style="display:flex;gap:8px;align-items:center;margin:4px 0;font-size:14px;line-height:20px;color:var(--ink);cursor:pointer">
         <input type="radio" name="q{{ q.id }}" value="{{ loop.index0 }}" required>
         {{ choice }}
       </label>

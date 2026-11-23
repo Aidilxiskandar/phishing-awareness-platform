@@ -26,18 +26,18 @@
     <p style="color:var(--muted)">No campaigns yet. Create one above.</p>
   {% else %}
   <table>
-    <tr><th>Name</th><th>Status</th><th>Targets</th><th>Opens</th>
-        <th>Human clicks</th><th>Scanner clicks</th><th>Reported</th><th></th></tr>
+    <tr><th>Name</th><th>Status</th><th class="num">Targets</th><th class="num">Opens</th>
+        <th class="num">Human clicks</th><th class="num">Scanner clicks</th><th class="num">Reported</th><th></th></tr>
     {% for r in rows %}
     <tr>
       <td>{{ r.c.name }}</td>
-      <td><span class="pill unknown">{{ r.c.status.value }}</span></td>
-      <td>{{ r.targets }}</td>
-      <td>{{ r.opens }}</td>
-      <td><span class="pill human">{{ r.human_clicks }}</span></td>
-      <td><span class="pill scanner">{{ r.scanner_clicks }}</span></td>
-      <td><span class="pill report">{{ r.reports }}</span></td>
-      <td><a href="/campaigns/{{ r.c.id }}">Open →</a></td>
+      <td><span class="pill">{{ r.c.status.value }}</span></td>
+      <td class="num">{{ r.targets }}</td>
+      <td class="num">{{ r.opens }}</td>
+      <td class="num"{% if r.human_clicks %} style="color:var(--red)"{% endif %}>{{ r.human_clicks }}</td>
+      <td class="num">{{ r.scanner_clicks }}</td>
+      <td class="num">{{ r.reports }}</td>
+      <td class="num"><a href="/campaigns/{{ r.c.id }}">Open</a></td>
     </tr>
     {% endfor %}
   </table>

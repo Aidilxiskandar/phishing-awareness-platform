@@ -3,30 +3,21 @@
 
 {# ---------- KPI row ---------- #}
 <div class="kpi-row">
-  <div class="kpi b">
-    <div class="kpi-top">
-      <span class="kpi-label">Users</span>
-      <span class="kpi-ico"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 4.5a3 3 0 010 6M21 20c0-2.6-1.3-4.3-3.5-5"/></svg></span>
-    </div>
+  <div class="kpi">
+    <span class="kpi-label">Users</span>
     <div class="kpi-val">{{ stats.users }}</div>
     <div class="kpi-foot"><span class="kpi-note">in directory · {{ charts.tested_count }} tested</span></div>
   </div>
 
   <div class="kpi">
-    <div class="kpi-top">
-      <span class="kpi-label">Campaigns</span>
-      <span class="kpi-ico"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span>
-    </div>
+    <span class="kpi-label">Campaigns</span>
     <div class="kpi-val">{{ stats.campaigns }}</div>
     <div class="kpi-foot"><span class="kpi-note">{{ stats.sent }} emails delivered</span></div>
   </div>
 
-  <div class="kpi a">
-    <div class="kpi-top">
-      <span class="kpi-label">Phish-prone rate</span>
-      <span class="kpi-ico"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 001.7 3h16.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg></span>
-    </div>
-    <div class="kpi-val" style="color:var(--amber)">{{ '%.0f' % stats.click_rate }}%</div>
+  <div class="kpi">
+    <span class="kpi-label">Phish-prone rate</span>
+    <div class="kpi-val" style="color:var(--accent)">{{ '%.0f' % stats.click_rate }}%</div>
     <div class="kpi-foot">
       {% if charts.delta is not none %}
         {% if charts.delta > 0.5 %}
@@ -43,21 +34,15 @@
     </div>
   </div>
 
-  <div class="kpi r">
-    <div class="kpi-top">
-      <span class="kpi-label">Scanner clicks</span>
-      <span class="kpi-ico"><svg viewBox="0 0 24 24"><path d="M3 3h18v14H3z"/><path d="M8 21h8M12 17v4"/><path d="M7 8l3 3 7-6"/></svg></span>
-    </div>
-    <div class="kpi-val" style="color:var(--red)">{{ stats.scanner_clicks }}</div>
+  <div class="kpi">
+    <span class="kpi-label">Scanner clicks</span>
+    <div class="kpi-val">{{ stats.scanner_clicks }}</div>
     <div class="kpi-foot"><span class="kpi-note">filtered out, not counted</span></div>
   </div>
 
-  <div class="kpi g">
-    <div class="kpi-top">
-      <span class="kpi-label">Reported</span>
-      <span class="kpi-ico"><svg viewBox="0 0 24 24"><path d="M4 21V4h11l-1.5 4L15 12H4"/></svg></span>
-    </div>
-    <div class="kpi-val" style="color:var(--green)">{{ stats.reports }}</div>
+  <div class="kpi">
+    <span class="kpi-label">Reported</span>
+    <div class="kpi-val">{{ stats.reports }}</div>
     <div class="kpi-foot"><span class="kpi-note">{{ stats.trainings_done }} trainings taken</span></div>
   </div>
 </div>
@@ -68,10 +53,10 @@
     <div class="chart-head">
       <div>
         <h3>Phish-prone rate over time</h3>
-        <div class="sub">Human click rate per campaign — the headline training metric</div>
+        <div class="sub">Human click rate per sent campaign</div>
       </div>
       {% if charts.trend_series %}
-        <div class="big" style="color:var(--amber)">{{ '%.0f' % charts.trend_series[-1].rate }}%</div>
+        <div class="big" style="color:var(--accent)">{{ '%.0f' % charts.trend_series[-1].rate }}%</div>
       {% endif %}
     </div>
     {% if charts.trend_series %}
@@ -79,8 +64,8 @@
     <svg class="trend-svg" viewBox="0 0 {{ tr.w }} {{ tr.h }}" preserveAspectRatio="none" role="img" aria-label="Phish-prone rate per campaign">
       <defs>
         <linearGradient id="trendfill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="var(--brand-2)" stop-opacity=".28"/>
-          <stop offset="1" stop-color="var(--brand-2)" stop-opacity="0"/>
+          <stop offset="0" stop-color="var(--accent)" stop-opacity=".16"/>
+          <stop offset="1" stop-color="var(--accent)" stop-opacity="0"/>
         </linearGradient>
       </defs>
       {% for g in tr.gridlines %}
@@ -161,7 +146,7 @@
   </div>
 
   <div class="card">
-    <div class="chart-head"><div><h3>Click accuracy</h3><div class="sub">Human vs automated scanner — what sets this apart</div></div></div>
+    <div class="chart-head"><div><h3>Click accuracy</h3><div class="sub">Human clicks vs automated scanner fetches</div></div></div>
     {% set a = charts.accuracy %}
     {% if a.total_clicks %}
     {% set hp = a.human / a.total_clicks * 100 %}
@@ -171,7 +156,7 @@
     </div>
     <div class="split-legend">
       <div class="sl"><span class="dot" style="background:var(--red)"></span><span>Human <b>{{ a.human }}</b></span></div>
-      <div class="sl"><span class="dot" style="background:var(--blue)"></span><span>Scanner <b>{{ a.scanner }}</b></span></div>
+      <div class="sl"><span class="dot" style="background:var(--n2)"></span><span>Scanner <b>{{ a.scanner }}</b></span></div>
       <div class="sl"><span class="dot" style="background:var(--green)"></span><span>Reported <b>{{ a.reported }}</b></span></div>
     </div>
     <p style="color:var(--muted);font-size:12.5px;margin:16px 0 0;line-height:1.5">
@@ -194,11 +179,11 @@
       <tr><th>When (UTC)</th><th>Recipient</th><th>Type</th><th>Verdict</th><th>Why</th></tr>
       {% for e in recent %}
       <tr>
-        <td style="white-space:nowrap">{{ e.created_at.strftime('%m-%d %H:%M:%S') }}</td>
+        <td class="ts">{{ e.created_at.strftime('%m-%d %H:%M:%S') }}</td>
         <td>{{ (target_by_id.get(e.target_id).email) if target_by_id.get(e.target_id) else e.target_id }}</td>
         <td>{{ e.type.value }}</td>
-        <td><span class="pill {{ e.verdict.value }}">{{ e.verdict.value }}</span></td>
-        <td style="max-width:300px">{{ e.reason }}</td>
+        <td><span class="verdict {{ e.verdict.value }}">{{ e.verdict.value }}{% if e.seconds_since_send is not none %}<span class="t">· {{ e.seconds_since_send | humandur }}</span>{% endif %}</span></td>
+        <td style="min-width:240px;color:var(--muted)">{{ e.reason }}</td>
       </tr>
       {% endfor %}
     </table>
@@ -220,14 +205,14 @@
           <div class="nm">{{ r.user.name or r.user.email }}</div>
           <div class="dp">{{ r.user.department or 'No department' }} · {{ r.human_clicks }} clicked · {{ r.reports }} reported</div>
         </div>
-        <span class="pill {{ 'scanner' if r.band=='High' else 'unknown' if r.band=='Medium' else 'human' }}">{{ r.band }}</span>
+        <span class="pill {{ 'bad' if r.band=='High' else 'warn' if r.band=='Medium' else '' }}">{{ r.band }}</span>
         <span class="sc">{{ r.score }}</span>
       </div>
       {% endfor %}
     </div>
     {% else %}
     <div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6"/></svg>
-      <div>No at-risk users yet — run a drill to populate scores.</div></div>
+      <div>No at-risk users yet. Run a drill to populate scores.</div></div>
     {% endif %}
   </div>
 </div>

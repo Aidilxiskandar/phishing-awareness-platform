@@ -11,11 +11,10 @@
                           | selectattr('verdict.value','equalto','unknown') | list | length %}
 {% set reports = events | selectattr('type.value','equalto','report') | list | length %}
 
-<p style="margin-top:0"><a href="/phishing" style="color:var(--muted)">← All campaigns</a></p>
+<p style="margin-top:0"><a class="back" href="/phishing">← All campaigns</a></p>
 
 {% if notice %}
-<div style="background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);
-     color:var(--amber);padding:11px 15px;border-radius:9px;margin-bottom:18px;font-size:13px;">
+<div class="notice">
   {{ notice }}</div>
 {% endif %}
 
@@ -23,10 +22,10 @@
   <h2>{{ campaign.name }}</h2>
   <div class="grid4">
     <div><div class="metric">{{ opens }}<small>Opens</small></div></div>
-    <div><div class="metric" style="color:var(--green)">{{ human }}<small>Human clicks</small></div></div>
-    <div><div class="metric" style="color:var(--red)">{{ scanner }}<small>Scanner clicks</small></div></div>
-    <div><div class="metric" style="color:var(--muted)">{{ unknownc }}<small>Unclassified</small></div></div>
-    <div><div class="metric" style="color:var(--blue)">{{ reports }}<small>Reported</small></div></div>
+    <div><div class="metric" style="color:var(--red)">{{ human }}<small>Human clicks</small></div></div>
+    <div><div class="metric">{{ scanner }}<small>Scanner clicks</small></div></div>
+    <div><div class="metric">{{ unknownc }}<small>Unclassified</small></div></div>
+    <div><div class="metric">{{ reports }}<small>Reported</small></div></div>
   </div>
 </div>
 
@@ -56,7 +55,7 @@
         <td>{{ u.name or '—' }}</td>
         <td>{{ u.email }}</td>
         <td>{{ u.department or '—' }}</td>
-        <td>{% if u.consented %}<span class="pill human">yes</span>{% else %}<span class="pill scanner">no</span>{% endif %}</td>
+        <td>{% if u.consented %}<span class="pill good">yes</span>{% else %}<span class="pill">no</span>{% endif %}</td>
       </tr>
       {% endfor %}
     </table>
@@ -76,13 +75,13 @@
       <td>{{ t.name or '—' }}</td>
       <td>{{ t.email }}</td>
       <td><code>/t/click/{{ t.token }}</code></td>
-      <td class="num"><a class="btn ghost btn-sm" href="/campaigns/{{ campaign.id }}/preview/{{ t.id }}">👁 View email</a></td>
+      <td class="num"><a class="btn ghost btn-sm" href="/campaigns/{{ campaign.id }}/preview/{{ t.id }}">View email</a></td>
     </tr>
     {% endfor %}
   </table>
   <form method="post" action="/campaigns/{{ campaign.id }}/send" style="margin-top:14px">
     <button type="submit">
-      {% if dry_run %}Send drill (DRY-RUN → console){% else %}Send drill emails{% endif %}
+      {% if dry_run %}Send drill (dry run, printed to console){% else %}Send drill emails{% endif %}
     </button>
   </form>
   {% else %}
@@ -91,8 +90,8 @@
 </div>
 
 <div class="card">
-  <h2>Evidence log — every click, with the proof</h2>
-  <p style="color:var(--muted);font-size:13px;margin-top:-6px">
+  <h2>Evidence log</h2>
+  <p style="color:var(--muted);font-size:13px">
     Raw IP + User-Agent + timing kept for every event. This is what turns a result
     from "trust us" into evidence when someone disputes a click.</p>
   {% if events %}
@@ -102,14 +101,14 @@
         <th title="Time between the campaign send and this event. Sub-second = scanner; minutes–hours = human.">Time to event <span style="color:var(--faint);font-weight:400">(Δt)</span></th></tr>
     {% for e in events %}
     <tr>
-      <td>{{ e.created_at.strftime('%m-%d %H:%M:%S') }}</td>
+      <td class="ts">{{ e.created_at.strftime('%m-%d %H:%M:%S') }}</td>
       <td>{{ (target_by_id.get(e.target_id).email) if target_by_id.get(e.target_id) else e.target_id }}</td>
       <td>{{ e.type.value }}</td>
-      <td><span class="pill {{ e.verdict.value }}">{{ e.verdict.value }}</span></td>
-      <td style="max-width:240px">{{ e.reason }}</td>
+      <td><span class="verdict {{ e.verdict.value }}">{{ e.verdict.value }}{% if e.seconds_since_send is not none %}<span class="t">· {{ e.seconds_since_send | humandur }}</span>{% endif %}</span></td>
+      <td style="min-width:220px;color:var(--muted)">{{ e.reason }}</td>
       <td><code>{{ e.ip }}</code></td>
       <td><code>{{ (e.user_agent[:48] ~ '…') if e.user_agent|length > 48 else e.user_agent }}</code></td>
-      <td style="white-space:nowrap" {% if e.seconds_since_send is not none %}title="{{ '%.1f' % e.seconds_since_send }} seconds since send"{% endif %}>{{ e.seconds_since_send | humandur }}</td>
+      <td class="ts" {% if e.seconds_since_send is not none %}title="{{ '%.1f' % e.seconds_since_send }} seconds since send"{% endif %}>{{ e.seconds_since_send | humandur }}</td>
     </tr>
     {% endfor %}
   </table>

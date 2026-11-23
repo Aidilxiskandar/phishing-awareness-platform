@@ -350,15 +350,15 @@ def dashboard(request: Request):
 
     charts = {
         "funnel": [
-            {"label": "Delivered", "value": sent_targets, "color": "var(--brand-2)"},
-            {"label": "Opened", "value": len(opened_ids), "color": "var(--blue)"},
+            {"label": "Delivered", "value": sent_targets, "color": "var(--n2)"},
+            {"label": "Opened", "value": len(opened_ids), "color": "var(--n3)"},
             {"label": "Clicked (human)", "value": len(clicked_ids), "color": "var(--red)"},
             {"label": "Reported", "value": len(reported_ids), "color": "var(--green)"},
         ],
         "risk_donut": _donut([
             {"label": "High", "value": band_count["High"], "color": "var(--red)"},
             {"label": "Medium", "value": band_count["Medium"], "color": "var(--amber)"},
-            {"label": "Low", "value": band_count["Low"], "color": "var(--green)"},
+            {"label": "Low", "value": band_count["Low"], "color": "var(--n2)"},
         ]),
         "accuracy": {"human": human_clicks, "scanner": scanner_clicks, "reported": reports,
                      "total_clicks": human_clicks + scanner_clicks},

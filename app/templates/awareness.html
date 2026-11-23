@@ -5,19 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reported — thank you</title>
 <style>
-  body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-         background:#0f172a; color:#e2e8f0; display:flex; min-height:100vh;
-         align-items:center; justify-content:center; padding:24px; }
-  .box { max-width:480px; background:#1e293b; border:1px solid #334155;
-         border-radius:14px; padding:32px; text-align:center; }
-  .mark { font-size:46px; }
-  h1 { font-size:22px; margin:8px 0; }
-  p { color:#94a3b8; line-height:1.5; }
+  :root{ color-scheme:dark; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+         font-size:15px; line-height:22px; background:#141415; color:#ededed; display:flex;
+         min-height:100vh; align-items:center; justify-content:center; padding:24px;
+         -webkit-font-smoothing:antialiased; }
+  .box { max-width:520px; background:#19191b; border:1px solid rgba(237,237,237,.08);
+         border-radius:16px; padding:32px; }
+  .mark { width:40px; height:40px; margin-bottom:16px; }
+  .mark svg { width:40px; height:40px; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+  h1 { font-size:24px; line-height:32px; font-weight:500; margin:0 0 8px; }
+  p { color:#a1a1a6; margin:0 0 16px; }
 </style>
 </head>
 <body>
   <div class="box">
-    <div class="mark">✅</div>
+    <div class="mark"><svg viewBox="0 0 24 24" stroke="#4cc38a"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg></div>
     <h1>Thank you for reporting</h1>
     <p>This was a phishing simulation, and reporting it is exactly the right move.
        Spotting and reporting suspicious email is the single most useful thing you

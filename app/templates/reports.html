@@ -3,7 +3,7 @@
 
 <div class="card">
   <h2>Per-person risk</h2>
-  <p style="color:var(--muted);font-size:13px;margin-top:-6px">
+  <p style="color:var(--muted);font-size:13px">
     Behaviour across all campaigns. Human click = +3, open = +1, report = −2.
     Scanner clicks are excluded — they aren't the person. Higher = riskier.</p>
   {% if risk %}
@@ -19,11 +19,11 @@
       <td class="num">{{ r.opens }}</td>
       <td class="num">{{ r.human_clicks }}</td>
       <td class="num">{{ r.reports }}</td>
-      <td class="num"><strong>{{ r.score }}</strong></td>
+      <td class="num" style="font-weight:500">{{ r.score }}</td>
       <td class="num">
-        {% if r.band == 'High' %}<span class="pill scanner">High</span>
-        {% elif r.band == 'Medium' %}<span class="pill unknown">Medium</span>
-        {% else %}<span class="pill human">Low</span>{% endif %}
+        {% if r.band == 'High' %}<span class="pill bad">High</span>
+        {% elif r.band == 'Medium' %}<span class="pill warn">Medium</span>
+        {% else %}<span class="pill">Low</span>{% endif %}
       </td>
     </tr>
     {% endfor %}
@@ -35,19 +35,19 @@
 
 <div class="card">
   <h2>Full evidence log</h2>
-  <p style="margin-top:-6px"><a class="btn" href="/reports/export.csv">⬇ Export CSV</a></p>
+  <p style="margin-top:0"><a class="btn ghost" href="/reports/export.csv">Export CSV</a></p>
   {% if events %}
   <table style="margin-top:14px">
     <tr><th>When (UTC)</th><th>Campaign</th><th>Recipient</th><th>Type</th><th>Verdict</th>
         <th>Why</th><th>IP</th><th>User-Agent</th></tr>
     {% for e in events %}
     <tr>
-      <td>{{ e.created_at.strftime('%m-%d %H:%M:%S') }}</td>
+      <td class="ts">{{ e.created_at.strftime('%m-%d %H:%M:%S') }}</td>
       <td>{{ campaign_by_id.get(e.campaign_id).name if campaign_by_id.get(e.campaign_id) else e.campaign_id }}</td>
       <td>{{ (target_by_id.get(e.target_id).email) if target_by_id.get(e.target_id) else e.target_id }}</td>
       <td>{{ e.type.value }}</td>
-      <td><span class="pill {{ e.verdict.value }}">{{ e.verdict.value }}</span></td>
-      <td style="max-width:220px">{{ e.reason }}</td>
+      <td><span class="verdict {{ e.verdict.value }}">{{ e.verdict.value }}{% if e.seconds_since_send is not none %}<span class="t">· {{ e.seconds_since_send | humandur }}</span>{% endif %}</span></td>
+      <td style="min-width:220px;color:var(--muted)">{{ e.reason }}</td>
       <td><code>{{ e.ip }}</code></td>
       <td><code>{{ (e.user_agent[:40] ~ '…') if e.user_agent|length > 40 else e.user_agent }}</code></td>
     </tr>
@@ -60,17 +60,17 @@
 
 <div class="card">
   <h2>Admin activity (audit trail)</h2>
-  <p style="color:var(--muted);font-size:13px;margin-top:-6px">
-    Who did what, from where — a record of privileged actions (login, campaign
+  <p style="color:var(--muted);font-size:13px">
+    Who did what, from where. A record of privileged actions (login, campaign
     create/send, user add, export).</p>
   {% if audit %}
   <table>
     <tr><th>When (UTC)</th><th>Admin</th><th>Action</th><th>Detail</th><th>IP</th></tr>
     {% for a in audit %}
     <tr>
-      <td>{{ a.created_at.strftime('%m-%d %H:%M:%S') }}</td>
+      <td class="ts">{{ a.created_at.strftime('%m-%d %H:%M:%S') }}</td>
       <td>{{ a.actor }}</td>
-      <td><span class="pill unknown">{{ a.action }}</span></td>
+      <td><code>{{ a.action }}</code></td>
       <td>{{ a.detail }}</td>
       <td><code>{{ a.ip }}</code></td>
     </tr>

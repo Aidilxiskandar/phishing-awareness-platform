@@ -5,37 +5,41 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Security Awareness</title>
 <style>
-  body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-         background:#0f172a; color:#e2e8f0; display:flex; min-height:100vh;
-         align-items:center; justify-content:center; padding:24px; }
-  .box { max-width:520px; background:#1e293b; border:1px solid #334155;
-         border-radius:14px; padding:32px; text-align:center; }
-  h1 { font-size:22px; margin:0 0 8px; }
-  p { color:#94a3b8; line-height:1.5; }
-  .mark { font-size:46px; }
-  ul { text-align:left; color:#cbd5e1; line-height:1.7; }
+  :root{ color-scheme:dark; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+         font-size:15px; line-height:22px; background:#141415; color:#ededed; display:flex;
+         min-height:100vh; align-items:center; justify-content:center; padding:24px;
+         -webkit-font-smoothing:antialiased; }
+  .box { max-width:520px; background:#19191b; border:1px solid rgba(237,237,237,.08);
+         border-radius:16px; padding:32px; }
+  .mark { width:40px; height:40px; margin-bottom:16px; }
+  .mark svg { width:40px; height:40px; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+  h1 { font-size:24px; line-height:32px; font-weight:500; margin:0 0 8px; }
+  p { color:#a1a1a6; margin:0 0 16px; }
+  ul { color:#ededed; padding-left:20px; margin:0 0 16px; line-height:28px; }
+  .lead { color:#ededed; font-weight:500; margin-top:24px; margin-bottom:8px; }
+  .cta { display:inline-flex; align-items:center; height:40px; padding:0 16px; margin-top:8px;
+         background:#ededed; color:#141415; border-radius:8px; text-decoration:none; font-weight:500; }
+  .cta:hover { background:#fff; }
 </style>
 </head>
 <body>
   <div class="box">
-    <div class="mark">🎣</div>
+    <div class="mark"><svg viewBox="0 0 24 24" stroke="#f5a524"><path d="M12 2l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V5l7-3z"/><path d="M12 8v4M12 16h.01"/></svg></div>
     <h1>This was a phishing simulation</h1>
     <p>If this had been a real attack, clicking could have handed over your
-       password or installed malware. No harm done — this was a safe security
+       password or installed malware. No harm done. This was a safe security
        awareness drill.</p>
-    <p style="color:#cbd5e1;font-weight:600;margin-top:20px">How to spot the next one:</p>
+    <p class="lead">How to spot the next one</p>
     <ul>
       <li>Urgency and threats ("verify within 24 hours")</li>
       <li>A sender address that doesn't quite match</li>
-      <li>Links that don't go where they claim — hover first</li>
+      <li>Links that don't go where they claim, so hover first</li>
       <li>Requests for your password or MFA code</li>
     </ul>
-    <p style="font-size:13px;margin-top:20px">When in doubt, report the email to IT
+    <p style="font-size:13px">When in doubt, report the email to IT
        instead of clicking.</p>
-    <a href="/training/spotting-phishing?token={{ token }}"
-       style="display:inline-block;margin-top:16px;background:#3b82f6;color:#fff;
-              padding:10px 18px;border-radius:7px;text-decoration:none;">
-       Take the 2-minute training →</a>
+    <a class="cta" href="/training/spotting-phishing?token={{ token }}">Take the 2-minute training</a>
   </div>
 
   <!-- Decisive human signal: a scanner/proxy fetches the page but does not run
