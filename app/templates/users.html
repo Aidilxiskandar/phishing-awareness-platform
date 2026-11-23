@@ -84,7 +84,7 @@
     {% if groups %}
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
       <span style="color:var(--muted);font-size:13px">Assign checked users to:</span>
-      <select name="group_id" style="background:#0b1220;border:1px solid var(--line);color:var(--ink);padding:8px 10px;border-radius:6px">
+      <select name="group_id" style="width:auto">
         {% for g in groups %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
       </select>
       <button type="submit" class="ghost">Assign</button>
@@ -106,7 +106,7 @@
             <span class="pill unknown" style="margin:1px">{{ gname }}</span>
           {% else %}<span style="color:var(--muted)">—</span>{% endfor %}
         </td>
-        <td><button type="submit" class="ghost" formaction="/users/{{ u.id }}/erase"
+        <td><button type="submit" class="ghost btn-sm danger" formaction="/users/{{ u.id }}/erase"
               onclick="return confirm('Permanently erase this person\'s personal data? This cannot be undone.')"
               title="Right to erasure: anonymise this person">Erase</button></td>
       </tr>

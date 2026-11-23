@@ -37,7 +37,7 @@
   <form method="post" action="/campaigns/{{ campaign.id }}/targets_group"
         style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
     <span style="color:var(--muted);font-size:13px">Add everyone in a group:</span>
-    <select name="group_id" style="background:#0b1220;border:1px solid var(--line);color:var(--ink);padding:8px 10px;border-radius:6px">
+    <select name="group_id" style="width:auto">
       {% for g in groups %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
     </select>
     <button type="submit" class="ghost">Add group</button>

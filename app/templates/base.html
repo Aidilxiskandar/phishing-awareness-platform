@@ -7,6 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='18' font-size='18'>🛡️</text></svg>">
 <style>
   :root{
+    color-scheme:dark;
     --bg:#0a0f1c; --bg2:#0c1324; --surface:#111a2e; --surface-2:#0e1627;
     --line:#1e2b45; --line-2:#263554;
     --ink:#eaf0fb; --muted:#8a9bbb; --faint:#62769a;
@@ -115,6 +116,9 @@
   button.ghost:hover,.btn.ghost:hover{background:var(--surface-2); border-color:var(--brand);
     text-decoration:none;}
   .btn-sm{padding:6px 12px; font-size:12.5px; border-radius:8px;}
+  button.ghost.danger{color:var(--red);}
+  button.ghost.danger:hover{background:var(--red-soft); border-color:var(--red);}
+  input[type=checkbox]{accent-color:var(--brand); width:15px; height:15px; cursor:pointer;}
 
   /* --- Pills --- */
   .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px;
