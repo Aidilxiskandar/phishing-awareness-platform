@@ -6,25 +6,50 @@
   <div class="grid4">
     <div><div class="metric">{{ modules|length }}<small>Modules</small></div></div>
     <div><div class="metric">{{ done }}<small>Quizzes taken</small></div></div>
-    <div><div class="metric">{{ passed }}<small>Perfect scores</small></div></div>
+    <div><div class="metric">{{ passed }}<small>Passed (≥{{ pass_percent }}%)</small></div></div>
+    <div><div class="metric">{{ progress|selectattr('passed', 'equalto', modules|length)|list|length }}<small>Staff fully trained</small></div></div>
   </div>
   <p style="color:var(--muted);font-size:13px;margin-top:12px">
-    These are the micro-lessons shown after someone clicks a simulated phish. Anyone can
-    take them any time.</p>
+    Lessons and short videos from CISA, each with a quiz. Staff pass a module by scoring
+    {{ pass_percent }}% or more, and finish their training once every module is passed.
+    These are shown after someone clicks a simulated phish, and anyone can take them any time.</p>
 </div>
 
 <div class="card">
   <h2>Modules</h2>
   <table>
-    <tr><th>Title</th><th>What it covers</th><th></th></tr>
+    <tr><th>Title</th><th>What it covers</th><th class="num">Passed</th><th></th></tr>
     {% for m in modules %}
     <tr>
-      <td style="font-weight:500">{{ m.title }}</td>
+      <td style="font-weight:500">{% if m.video_url %}<span class="pill warn" style="margin-right:6px">Video</span>{% endif %}{{ m.title }}</td>
       <td style="color:var(--muted)">{{ m.summary }}</td>
+      <td class="num">{{ module_passes.get(m.id, 0) }}</td>
       <td class="num"><a href="/training/{{ m.slug }}">Start</a></td>
     </tr>
     {% endfor %}
   </table>
+</div>
+
+<div class="card">
+  <h2>Staff progress</h2>
+  {% if progress %}
+  <table>
+    <tr><th>Person</th><th>Department</th><th class="num">Modules passed</th><th>Status</th></tr>
+    {% for row in progress %}
+    <tr>
+      <td>{{ row.user.name or row.user.email }}</td>
+      <td style="color:var(--muted)">{{ row.user.department }}</td>
+      <td class="num">{{ row.passed }}/{{ modules|length }}</td>
+      <td>
+        {% if row.passed == modules|length %}<span class="pill good">Training complete</span>
+        {% else %}<span class="pill">In progress</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:var(--muted)">No staff results yet. Results are linked to a person when they open training from a campaign link.</p>
+  {% endif %}
 </div>
 
 <div class="card">
@@ -37,8 +62,8 @@
       <td class="ts">{{ r.created_at.strftime('%m-%d %H:%M') }}</td>
       <td>{{ module_by_id.get(r.module_id).title if module_by_id.get(r.module_id) else r.module_id }}</td>
       <td>
-        {% if r.total and r.score == r.total %}<span class="pill good">{{ r.score }}/{{ r.total }}</span>
-        {% else %}<span class="pill">{{ r.score }}/{{ r.total }}</span>{% endif %}
+        {% if passed_fn(r.score, r.total) %}<span class="pill good">{{ r.score }}/{{ r.total }} · Passed</span>
+        {% else %}<span class="pill bad">{{ r.score }}/{{ r.total }} · Not passed</span>{% endif %}
       </td>
     </tr>
     {% endfor %}

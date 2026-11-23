@@ -91,3 +91,115 @@ def test_video_info_local_file_readiness():
     assert missing["poster"] == "/static/p.png"
     external = video_info(_mod("https://cdn.example.com/clip.mp4"))
     assert external["kind"] == "file" and external["ready"] is True
+
+
+def test_seeded_modules_have_official_sources(client, session_factory):
+    with session_factory() as s:
+        modules = s.exec(select(TrainingModule)).all()
+    for m in modules:
+        assert m.sources, f"{m.slug} has no sources"
+        assert all(src["url"].startswith("https://") for src in m.sources)
+        assert "youtube.com" in m.video_url or any(src["kind"] == "video" for src in m.sources)
+    module = modules[0]
+    r = client.get(f"/training/{module.slug}")
+    assert "Watch &amp; read more" in r.text
+    assert module.sources[0]["url"] in r.text
+    assert 'rel="noopener noreferrer"' in r.text
+
+
+def test_sources_property_drops_bad_entries():
+    m = TrainingModule(slug="x", title="x", sources_json='[{"url": "javascript:alert(1)"},'
+                       '{"url": "https://cisa.gov", "title": "ok"}, "junk"]')
+    assert [s["url"] for s in m.sources] == ["https://cisa.gov"]
+    assert TrainingModule(slug="y", title="y", sources_json="not json").sources == []
+    assert TrainingModule(slug="z", title="z", sources_json='[{"url": 5}]').sources == []
+    assert TrainingModule(slug="w", title="w", sources_json='{"url": "https://x"}').sources == []
+
+
+def test_backfill_fills_empty_sources_only(session_factory):
+    from app.database import _backfill_sources
+    with session_factory() as s:
+        a, b = s.exec(select(TrainingModule).order_by(TrainingModule.order)).all()[:2]
+        a.sources_json = "[]"
+        b.sources_json = '[{"url": "https://example.com", "title": "custom"}]'
+        s.add(a); s.add(b); s.commit()
+        _backfill_sources(s)
+        s.refresh(a); s.refresh(b)
+    assert len(a.sources) > 1
+    assert b.sources[0]["title"] == "custom"
+
+
+def _module(session_factory, slug):
+    with session_factory() as s:
+        m = s.exec(select(TrainingModule).where(TrainingModule.slug == slug)).one()
+        qs = s.exec(select(TrainingQuestion).where(TrainingQuestion.module_id == m.id)
+                    .order_by(TrainingQuestion.order)).all()
+    return m, qs
+
+
+def test_each_cisa_video_is_a_module_with_a_quiz(session_factory):
+    with session_factory() as s:
+        videos = [m for m in s.exec(select(TrainingModule)).all() if m.video_url]
+    yt = [m for m in videos if "youtube.com" in m.video_url]
+    assert len(yt) == 5
+    for m in yt:
+        _, qs = _module(session_factory, m.slug)
+        assert len(qs) >= 3
+        assert all(0 <= q.correct_index < len(q.choices) for q in qs)
+
+
+def test_video_lesson_embeds_youtube(client):
+    r = client.get("/training/video-strong-passwords")
+    assert "https://www.youtube.com/embed/XXrbut5xRbE" in r.text
+    assert "Watch the video above" in r.text
+
+
+def test_pass_and_fail_against_pass_mark(client, session_factory):
+    m, qs = _module(session_factory, "video-turn-on-mfa")
+    all_right = {f"q{q.id}": str(q.correct_index) for q in qs}
+    r = client.post(f"/training/{m.slug}/quiz", data=all_right)
+    assert "Passed" in r.text
+    one_wrong = dict(all_right, **{f"q{qs[0].id}": str((qs[0].correct_index + 1) % 4)})
+    r = client.post(f"/training/{m.slug}/quiz", data=one_wrong)   # 2/3 = 67% < 80%
+    assert "Not passed yet" in r.text
+
+
+def test_staff_progress_shows_completed_person(client, session_factory):
+    client.post("/users", data={"email": "done@example.com", "name": "Done Person",
+                                "consented": "on"})
+    client.post("/campaigns", data={"name": "C", "subject": "S",
+                                    "from_name": "IT", "from_email": "it@example.com"})
+    from app.models import Campaign, User
+    with session_factory() as s:
+        uid = s.exec(select(User.id)).first()
+        cid = s.exec(select(Campaign.id)).first()
+        slugs = [m.slug for m in s.exec(select(TrainingModule)).all()]
+    client.post(f"/campaigns/{cid}/targets", data={"user_ids": uid})
+    with session_factory() as s:
+        token = s.exec(select(Target.token)).first()
+
+    for slug in slugs[:-1]:
+        _, qs = _module(session_factory, slug)
+        client.post(f"/training/{slug}/quiz",
+                    data={"token": token, **{f"q{q.id}": str(q.correct_index) for q in qs}})
+    page = client.get("/training").text
+    assert "Done Person" in page and "In progress" in page
+
+    _, qs = _module(session_factory, slugs[-1])
+    client.post(f"/training/{slugs[-1]}/quiz",
+                data={"token": token, **{f"q{q.id}": str(q.correct_index) for q in qs}})
+    assert "Training complete" in client.get("/training").text
+
+
+def test_new_seed_modules_reach_existing_database(session_factory):
+    from app.database import _seed_training
+    with session_factory() as s:
+        m = s.exec(select(TrainingModule).where(TrainingModule.slug == "video-avoid-phishing")).one()
+        for q in s.exec(select(TrainingQuestion).where(TrainingQuestion.module_id == m.id)).all():
+            s.delete(q)
+        s.commit()
+        s.delete(m)
+        s.commit()
+    _seed_training()
+    m, qs = _module(session_factory, "video-avoid-phishing")
+    assert m.video_url and len(qs) == 3

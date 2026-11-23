@@ -730,6 +730,11 @@ def assign_to_group(group_id: int = Form(...), user_ids: list[int] = Form(defaul
 
 # --- Training ---------------------------------------------------------------
 
+def _passed(score: int, total: int) -> bool:
+    """A quiz attempt passes when it meets the configured pass mark."""
+    return bool(total) and score * 100 >= settings.training_pass_percent * total
+
+
 @app.get("/training", response_class=HTMLResponse)
 def training_list(request: Request):
     with get_session() as session:
@@ -737,10 +742,35 @@ def training_list(request: Request):
         results = session.exec(select(QuizResult).order_by(QuizResult.id.desc())).all()
         module_by_id = {m.id: m for m in modules}
         done = len(results)
-        passed = sum(1 for r in results if r.total and r.score == r.total)
+        passed = sum(1 for r in results if _passed(r.score, r.total))
+        # Per-module pass counts, and per-person progress (attempts linked via token).
+        module_passes: dict[int, set] = {m.id: set() for m in modules}
+        person_passed: dict[int, set] = {}
+        person_tried: dict[int, set] = {}
+        for r in results:
+            key = r.user_id if r.user_id is not None else f"anon-{r.id}"
+            if _passed(r.score, r.total) and r.module_id in module_passes:
+                module_passes[r.module_id].add(key)
+            if r.user_id is not None:
+                person_tried.setdefault(r.user_id, set()).add(r.module_id)
+                if _passed(r.score, r.total):
+                    person_passed.setdefault(r.user_id, set()).add(r.module_id)
+        users = {u.id: u for u in session.exec(
+            select(User).where(User.id.in_(list(person_tried)), User.erased_at.is_(None))).all()} if person_tried else {}
+        module_ids = set(module_by_id)
+        progress = sorted(
+            ({"user": users[uid],
+              "passed": len(person_passed.get(uid, set()) & module_ids),
+              "tried": len(tried & module_ids)}
+             for uid, tried in person_tried.items() if uid in users),
+            key=lambda row: (-row["passed"], row["user"].email),
+        )
     return templates.TemplateResponse(request, "training_list.html", {
         "tab": "training", "modules": modules, "results": results[:15],
-        "module_by_id": module_by_id, "done": done, "passed": passed, "dry_run": settings.dry_run,
+        "module_by_id": module_by_id, "done": done, "passed": passed,
+        "module_passes": {mid: len(v) for mid, v in module_passes.items()},
+        "progress": progress, "pass_percent": settings.training_pass_percent,
+        "passed_fn": _passed, "dry_run": settings.dry_run,
     })
 
 
@@ -790,7 +820,9 @@ async def submit_quiz(request: Request, slug: str):
         session.commit()
         bullets = [b for b in module.body.split("\n") if b.strip()]
         video = _video_info(module)
-        result = {"score": score, "total": len(questions)}
+        result = {"score": score, "total": len(questions),
+                  "passed": _passed(score, len(questions)),
+                  "pass_percent": settings.training_pass_percent}
     return templates.TemplateResponse(request, "training_detail.html", {
         "tab": "training", "module": module, "questions": questions,
         "bullets": bullets, "video": video, "token": token, "result": result,

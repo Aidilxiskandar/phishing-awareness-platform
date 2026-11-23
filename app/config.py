@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     # --- Detection ---
     scanner_time_window_seconds: int = 15
 
+    # --- Training ---
+    # Minimum quiz score (percent) that counts as passing a module.
+    training_pass_percent: int = 80
+
     # --- Data retention ---
     # Delete evidence (events) older than this many days. 0 = keep indefinitely.
     retention_days: int = 0

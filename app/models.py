@@ -133,6 +133,20 @@ class TrainingModule(SQLModel, table=True):
     # the app, or a YouTube/Vimeo link. Empty = no video for this module.
     video_url: str = ""
     video_poster: str = ""  # optional poster image path/URL for the <video> player
+    # Further reading/watching from reputable publishers (CISA, NCSC, FTC...).
+    # JSON list of {"title", "url", "publisher", "kind"} where kind is "video" or "guide".
+    sources_json: str = "[]"
+
+    @property
+    def sources(self) -> list[dict]:
+        try:
+            data = json.loads(self.sources_json or "[]")
+        except (ValueError, TypeError):
+            return []
+        if not isinstance(data, list):
+            return []
+        return [d for d in data if isinstance(d, dict) and isinstance(d.get("url"), str)
+                and d["url"].startswith("https://")]
 
 
 class TrainingQuestion(SQLModel, table=True):

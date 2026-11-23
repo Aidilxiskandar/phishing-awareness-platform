@@ -30,21 +30,40 @@
 
 <div class="card">
   <h2>{{ module.title }}</h2>
+  {% if video %}<p style="color:var(--faint);font-size:13px;margin:0 0 4px">Watch the video above, then answer the quiz below. Key points:</p>{% endif %}
   <p style="color:var(--muted)">{{ module.summary }}</p>
   <ul style="line-height:28px;color:var(--ink);padding-left:20px;margin:0">
     {% for b in bullets %}<li>{{ b }}</li>{% endfor %}
   </ul>
 </div>
 
+{% if module.sources %}
+<div class="card">
+  <h2>Watch &amp; read more</h2>
+  <p style="color:var(--muted);margin-top:0">Short videos and guidance from official cybersecurity agencies. Links open in a new tab.</p>
+  <ul style="list-style:none;padding:0;margin:0">
+    {% for s in module.sources %}
+    <li style="display:flex;gap:10px;align-items:baseline;padding:8px 0;{% if not loop.last %}border-bottom:1px solid var(--line){% endif %}">
+      <span class="pill {{ 'warn' if s.kind == 'video' else '' }}" style="flex:none">{{ 'Video' if s.kind == 'video' else 'Guide' }}</span>
+      <span>
+        <a href="{{ s.url }}" target="_blank" rel="noopener noreferrer">{{ s.title }}</a>
+        {% if s.publisher %}<span style="color:var(--faint);font-size:13px"> · {{ s.publisher }}</span>{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
 {% if result %}
 <div class="card">
   <h2>Your result</h2>
-  {% if result.score == result.total %}
-    <p class="metric" style="color:var(--green);display:inline-block">{{ result.score }}/{{ result.total }}<small>All correct</small></p>
-    <p style="color:var(--muted)">You've got the key signals down. Nicely done.</p>
+  {% if result.passed %}
+    <p class="metric" style="color:var(--green);display:inline-block">{{ result.score }}/{{ result.total }}<small>Passed</small></p>
+    <p style="color:var(--muted)">You passed this module. {% if result.score != result.total %}Check the points above for the one you missed.{% else %}Nicely done.{% endif %}</p>
   {% else %}
-    <p class="metric" style="display:inline-block">{{ result.score }}/{{ result.total }}<small>Correct answers</small></p>
-    <p style="color:var(--muted)">Worth a re-read of the points above, then try again.</p>
+    <p class="metric" style="color:var(--red);display:inline-block">{{ result.score }}/{{ result.total }}<small>Not passed yet</small></p>
+    <p style="color:var(--muted)">You need {{ result.pass_percent }}% to pass. {% if video %}Rewatch the video and {% endif %}re-read the points above, then try again.</p>
   {% endif %}
   <a class="btn" href="/training/{{ module.slug }}{{ ('?token=' ~ token) if token }}">Retake quiz</a>
 </div>
