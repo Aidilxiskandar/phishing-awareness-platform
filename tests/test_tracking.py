@@ -56,7 +56,10 @@ def test_browser_click_then_confirm_is_human(client, anon, session_factory):
 
 def test_report_logs_report_event(client, anon, session_factory):
     _, token = _make_target(client, session_factory)
-    r = anon.get(f"/t/report/{token}")
+    # The GET only serves the confirmation page; the browser's POST records it.
+    assert anon.get(f"/t/report/{token}").status_code == 200
+    assert _events(session_factory, EventType.REPORT) == []
+    r = anon.post(f"/t/report/{token}", data={"js": "1"}, headers={"user-agent": CHROME})
     assert r.status_code == 200
     assert len(_events(session_factory, EventType.REPORT)) == 1
 

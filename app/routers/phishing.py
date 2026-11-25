@@ -29,6 +29,7 @@ from app.models import (
 )
 from app.services.email_templates import TEMPLATES as EMAIL_TEMPLATES
 from app.services.email_templates import get_template as get_email_template
+from app.services.reporting import campaign_report_metrics
 from app.web import logger, record_audit, templates
 
 router = APIRouter()
@@ -108,6 +109,7 @@ def campaign_detail(request: Request, cid: int, notice: str = ""):
             select(User).where(User.erased_at.is_(None)).order_by(User.name)).all()
         available = [u for u in all_users if u.id not in targeted_user_ids]
         groups = session.exec(select(StaffGroup).order_by(StaffGroup.name)).all()
+        report_metrics = campaign_report_metrics(session, campaign)
     notice_text = {
         "already_sent": "This campaign has already been sent — re-sending is blocked.",
     }.get(notice, "")
@@ -115,7 +117,7 @@ def campaign_detail(request: Request, cid: int, notice: str = ""):
         "tab": "phishing", "campaign": campaign,
         "targets": targets, "events": events, "target_by_id": target_by_id,
         "available_users": available, "groups": groups, "notice": notice_text,
-        "dry_run": settings.dry_run,
+        "dry_run": settings.dry_run, "report_metrics": report_metrics,
     })
 
 

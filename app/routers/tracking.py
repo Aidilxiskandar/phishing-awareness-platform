@@ -3,14 +3,16 @@
   GET  /t/open/{token}.png    1x1 pixel -> logs an OPEN
   GET/HEAD /t/click/{token}   tracked link -> logs a CLICK, classifies, shows landing page
   POST /t/confirm/{token}     JS beacon from landing page -> logs CONFIRM, upgrades to HUMAN
-  GET  /t/report/{token}      recipient reported the email -> logs REPORT
+  GET/HEAD /t/report/{token}  "Report this email" confirmation page; records NOTHING
+                              (mail scanners fetch every link in a message)
+  POST /t/report/{token}      the page's JS or button press -> report recorded once
 """
 from __future__ import annotations
 
 import base64
 from datetime import UTC
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import (
     HTMLResponse,
     Response,
@@ -28,7 +30,8 @@ from app.models import (
     Verdict,
     utcnow,
 )
-from app.web import client_ip, templates
+from app.services.reporting import record_report
+from app.web import client_ip, logger, templates
 
 router = APIRouter()
 
@@ -139,14 +142,41 @@ def track_confirm(request: Request, token: str):
     return Response(status_code=204)
 
 
-@router.get("/t/report/{token}", response_class=HTMLResponse)
-def track_report(request: Request, token: str):
+def _report_thanks(request: Request, already: bool):
+    return templates.TemplateResponse(request, "awareness.html",
+                                      {"reported": True, "already": already})
+
+
+@router.api_route("/t/report/{token}", methods=["GET", "HEAD"], response_class=HTMLResponse)
+def report_page(request: Request, token: str):
+    with get_session() as session:
+        target, _ = _get_target(session, token)
+        if not target:
+            return HTMLResponse("Link expired.", status_code=404)
+        if target.reported_at is not None:
+            return _report_thanks(request, already=True)
+    logger.info("report_link_fetched target=%s ua=%r method=%s", target.id,
+                request.headers.get("user-agent", "")[:80], request.method)
+    return templates.TemplateResponse(request, "report_confirm.html", {"token": token})
+
+
+@router.post("/t/report/{token}", response_class=HTMLResponse)
+def report_submit(request: Request, token: str, js: str = Form("0")):
     with get_session() as session:
         target, campaign = _get_target(session, token)
         if not target:
             return HTMLResponse("Link expired.", status_code=404)
-        _log_event(session, target, campaign, EventType.REPORT, request,
-                   Verdict.HUMAN, "recipient reported the email as phishing",
-                   _seconds_since_send(campaign))
-    return templates.TemplateResponse(request, "awareness.html",
-                                      {"reported": True})
+        outcome = record_report(
+            session, target, campaign,
+            user_agent=request.headers.get("user-agent", ""),
+            http_method=request.method,
+            headers={k.lower(): v for k, v in request.headers.items()},
+            js_confirmed=(js == "1"), ip=client_ip(request),
+            time_window_seconds=settings.scanner_time_window_seconds,
+            scanner_networks=settings.scanner_network_list,
+        )
+    if outcome.counted or outcome.already:
+        return _report_thanks(request, already=outcome.already)
+    logger.info("report_rejected target=%s reason=%s", target.id, outcome.reason)
+    return templates.TemplateResponse(request, "report_confirm.html", {"token": token},
+                                      status_code=202)

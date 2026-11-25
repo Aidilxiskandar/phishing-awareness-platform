@@ -4,8 +4,9 @@
 <div class="card">
   <h2>Per-person risk</h2>
   <p style="color:var(--muted);font-size:13px">
-    Behaviour across all campaigns. Human click = +3, open = +1, report = −2.
-    Scanner clicks are excluded — they aren't the person. Higher = riskier.</p>
+    Behaviour across all campaigns. Human click = +3, open = +1, report = −2 per campaign
+    (a further −1 if they reported without clicking). Scanner clicks and scanner
+    fetches of the report link are excluded — they aren't the person. Higher = riskier.</p>
   {% if risk %}
   <table>
     <tr><th>Name</th><th>Email</th><th>Dept</th><th class="num">Campaigns</th><th class="num">Opens</th>
@@ -18,7 +19,7 @@
       <td class="num">{{ r.campaigns }}</td>
       <td class="num">{{ r.opens }}</td>
       <td class="num">{{ r.human_clicks }}</td>
-      <td class="num">{{ r.reports }}</td>
+      <td class="num" title="{{ r.reported_without_click }} without clicking · {{ '%.0f' % r.report_rate }}% of campaigns">{{ r.reports }}{% if r.reported_without_click %} <span class="pill good">{{ r.reported_without_click }} clean</span>{% endif %}</td>
       <td class="num" style="font-weight:500">{{ r.score }}</td>
       <td class="num">
         {% if r.band == 'High' %}<span class="pill bad">High</span>

@@ -143,8 +143,12 @@ def test_full_drill_dry_run(capsys, session_factory):
         assert "curl" in clicks[1].reason and clicks[1].user_agent == CURL
 
         # --- 8. Report ------------------------------------------------------
+        # A bare GET (what a mail scanner does) only shows the confirmation page...
         r = browser.get(f"/t/report/{token}", headers={"User-Agent": CHROME})
-        assert r.status_code == 200
+        assert r.status_code == 200 and "Report this email as phishing?" in r.text
+        # ...the browser's auto-submitted POST is what records the report.
+        r = browser.post(f"/t/report/{token}", data={"js": "1"}, headers={"User-Agent": CHROME})
+        assert r.status_code == 200 and "thank you for reporting" in r.text
 
     with TestClient(app) as web:
         assert login(web).status_code == 303

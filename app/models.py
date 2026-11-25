@@ -116,6 +116,9 @@ class Target(SQLModel, table=True):
     # Per-target send state (lets a send resume, and prevents re-sending).
     sent_at: datetime | None = None
     send_error: str = ""
+    # First confirmed "Report this email" by this recipient (set once; idempotent).
+    # Scanner fetches of the report link never set it (see app/services/reporting.py).
+    reported_at: datetime | None = None
 
 
 class Event(SQLModel, table=True):

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Report this email</title>
+<style>
+  :root{ color-scheme:dark; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+         font-size:15px; line-height:22px; background:#141415; color:#ededed; display:flex;
+         min-height:100vh; align-items:center; justify-content:center; padding:24px;
+         -webkit-font-smoothing:antialiased; }
+  .box { max-width:520px; background:#19191b; border:1px solid rgba(237,237,237,.08);
+         border-radius:16px; padding:32px; }
+  .mark { width:40px; height:40px; margin-bottom:16px; }
+  .mark svg { width:40px; height:40px; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+  h1 { font-size:24px; line-height:32px; font-weight:500; margin:0 0 8px; }
+  p { color:#a1a1a6; margin:0 0 16px; }
+  button { height:40px; padding:0 18px; border:0; border-radius:8px; background:#f5a524;
+           color:#141415; font:inherit; font-weight:600; cursor:pointer; }
+  button:focus-visible { outline:2px solid #ededed; outline-offset:2px; }
+</style>
+</head>
+<body>
+  <main class="box">
+    <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" stroke="#f5a524"><path d="M12 2l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V5l7-3z"/><path d="M12 8v4M12 16h.01"/></svg></div>
+    <h1>Report this email as phishing?</h1>
+    <p id="report-status" role="status">Sending your report to the security team&hellip;</p>
+    <!-- The report is recorded ONLY when this form is POSTed. Email scanners fetch
+         the link (GET) but don't run JavaScript or submit forms, so they never
+         count as a report. With JS on, the form submits itself; otherwise the
+         person presses the button. -->
+    <form id="report-form" method="post" action="/t/report/{{ token }}">
+      <input type="hidden" name="js" id="report-js" value="0">
+      <button type="submit">Yes, report it</button>
+    </form>
+  </main>
+  <script nonce="{{ csp_nonce(request) }}">
+    (function () {
+      try {
+        document.getElementById("report-js").value = "1";
+        document.getElementById("report-form").submit();
+      } catch (e) { /* fall back to the button */ }
+    })();
+  </script>
+</body>
+</html>

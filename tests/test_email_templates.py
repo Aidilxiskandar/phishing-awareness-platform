@@ -28,8 +28,9 @@ def test_template_renders_with_tracked_link(tmpl):
     assert f'href="{urls["click"]}"' in html
     assert urls["open_pixel"] in html
     assert tmpl.cta_label in html
-    # The only link in the email is the tracked one.
-    assert html.count("href=") == 1
+    # The only links are the tracked CTA and the per-recipient report link.
+    assert html.count("href=") == 2
+    assert f'href="{urls["report"]}"' in html
     # Preview is defanged.
     prev = render_email_html(campaign, target, preview=True)
     assert urls["click"] not in prev and urls["open_pixel"] not in prev

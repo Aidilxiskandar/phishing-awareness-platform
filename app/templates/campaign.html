@@ -9,7 +9,7 @@
                          | selectattr('verdict.value','equalto','scanner') | list | length %}
 {% set unknownc = events | selectattr('type.value','equalto','click')
                           | selectattr('verdict.value','equalto','unknown') | list | length %}
-{% set reports = events | selectattr('type.value','equalto','report') | list | length %}
+{% set rm = report_metrics %}
 
 <p style="margin-top:0"><a class="back" href="/phishing">← All campaigns</a></p>
 
@@ -25,7 +25,22 @@
     <div><div class="metric" style="color:var(--red)">{{ human }}<small>Human clicks</small></div></div>
     <div><div class="metric">{{ scanner }}<small>Scanner clicks</small></div></div>
     <div><div class="metric">{{ unknownc }}<small>Unclassified</small></div></div>
-    <div><div class="metric">{{ reports }}<small>Reported</small></div></div>
+    <div><div class="metric">{{ rm.reported }}<small>Reported</small></div></div>
+  </div>
+</div>
+
+<div class="card" id="reporting">
+  <h2>Reporting: the behaviour we want</h2>
+  <p style="color:var(--muted);font-size:13px">
+    A report counts only when the recipient's browser confirms it (JavaScript or a
+    button press). Scanner fetches of the "Report this email" link are ignored, and
+    each person counts once.</p>
+  <div class="grid4">
+    <div><div class="metric" style="color:var(--green)">{{ '%.0f' % rm.report_rate }}%<small>Report rate ({{ rm.reported }}/{{ rm.recipients }})</small></div></div>
+    <div><div class="metric">{{ rm.time_to_first_report | humandur }}<small>Time to first report</small></div></div>
+    <div><div class="metric">{{ rm.median_time_to_report | humandur }}<small>Median time to report</small></div></div>
+    <div><div class="metric">{{ rm.reported_without_click }}<small>Reported without clicking</small></div></div>
+    <div><div class="metric">{{ rm.clicked_then_reported }}<small>Clicked, then reported</small></div></div>
   </div>
 </div>
 
@@ -71,12 +86,13 @@
 
   {% if targets %}
   <table style="margin-top:14px">
-    <tr><th>Name</th><th>Email</th><th>Click URL (for manual testing)</th><th class="num">Email received</th></tr>
+    <tr><th>Name</th><th>Email</th><th>Click URL (for manual testing)</th><th>Reported</th><th class="num">Email received</th></tr>
     {% for t in targets %}
     <tr>
       <td>{{ t.name or '—' }}</td>
       <td>{{ t.email }}</td>
       <td><code>/t/click/{{ t.token }}</code></td>
+      <td>{% if t.reported_at %}<span class="pill good">{{ t.reported_at.strftime('%m-%d %H:%M') }}</span>{% else %}—{% endif %}</td>
       <td class="num"><a class="btn ghost btn-sm" href="/campaigns/{{ campaign.id }}/preview/{{ t.id }}">View email</a></td>
     </tr>
     {% endfor %}

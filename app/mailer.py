@@ -41,12 +41,14 @@ def render_email_html(campaign: Campaign, target: Target, preview: bool = False)
     safe_name = html.escape(target.name) if target.name else ""
     greeting = f"Hi {safe_name}," if safe_name else "Hi,"
     click_href = "#" if preview else urls["click"]
+    report_href = "#" if preview else urls["report"]
     pixel = "" if preview else (
         f'<img src="{urls["open_pixel"]}" width="1" height="1" alt="" style="display:none;">')
 
     # Body: the campaign's (template-derived or custom) text, or the built-in
     # default. Escaped and split into paragraphs so a template can never inject
-    # its own markup or links — the only link is the tracked CTA button below.
+    # its own markup or links — the only links are the tracked CTA button and the
+    # per-recipient "Report this email" link below.
     default_body = (
         "We detected unusual sign-in activity on your account. Please verify your "
         "identity within 24 hours to avoid suspension."
@@ -67,6 +69,8 @@ def render_email_html(campaign: Campaign, target: Target, preview: bool = False)
                text-decoration:none;border-radius:6px;display:inline-block;">{cta_label}</a></p>
   <p style="font-size:12px;color:#888;">If you did not request this, you can
      ignore this email.</p>
+  <p style="font-size:12px;color:#888;border-top:1px solid #eee;padding-top:10px;">
+     Suspicious? <a href="{report_href}" style="color:#2563eb;">Report this email</a></p>
   </div>
   <!-- open tracking pixel -->
   {pixel}
@@ -90,6 +94,7 @@ async def send_campaign_email(campaign: Campaign, target: Target) -> None:
         print(f"  Subject: {campaign.subject}")
         print(f"  Click URL:  {urls['click']}")
         print(f"  Open pixel: {urls['open_pixel']}")
+        print(f"  Report URL: {urls['report']}")
         print("=" * 70)
         return
 
