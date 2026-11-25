@@ -1,0 +1,28 @@
+# PhishGuard reverse proxy. Caddy obtains and renews a TLS certificate for
+# $DOMAIN automatically (Let's Encrypt / ZeroSSL) and redirects HTTP -> HTTPS.
+#
+# DNS for $DOMAIN must point at this host, and ports 80 + 443 must be reachable
+# from the internet for the ACME challenge.
+#
+# Client IPs: Caddy ignores any X-Forwarded-For sent by the client (no
+# trusted_proxies configured here) and sets it to the real peer address. The app
+# trusts X-Forwarded-For only from Caddy's fixed IP (TRUSTED_PROXIES in
+# docker-compose.prod.yml), so the evidence log records the true client IP and
+# cannot be spoofed by a forged header.
+#
+# Access logging is deliberately off (Caddy's default): the app already records
+# the IP/User-Agent it needs as evidence, and a second copy in proxy logs would
+# sit outside RETENTION_DAYS and right-to-erasure.
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# FastAPI docs are already hidden when ENV=prod; block them at the edge too.
+	@apidocs path /docs /docs/* /redoc /openapi.json
+	respond @apidocs 404
+
+	reverse_proxy web:8000 {
+		health_uri /health
+		health_interval 30s
+	}
+}

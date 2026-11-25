@@ -1,0 +1,92 @@
+# Production deployment: Caddy terminates TLS (automatic HTTPS) and is the only
+# service exposed to the network. The app listens on the internal network only.
+#
+#   cp .env.example .env        # set ENV=prod, SECRET_KEY, ADMIN_PASSWORD, SMTP_*,
+#                               # BASE_URL=https://$DOMAIN, and DOMAIN
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# The container migrates the database (python -m app.migrate) before serving.
+#
+# See docs/DEPLOYMENT.md for the full checklist.
+
+name: phishguard
+
+services:
+  web:
+    build: .
+    image: phishguard:latest
+    env_file:
+      - .env
+    # `environment` overrides the same keys from env_file, so these are always
+    # correct for this topology regardless of what .env says.
+    environment:
+      ENV: prod
+      DATABASE_URL: sqlite:////data/phishing.db
+      # Caddy's fixed address on the internal network (see `networks` below).
+      # The app matches this IP exactly before trusting X-Forwarded-For.
+      TRUSTED_PROXIES: 172.30.53.10
+    expose:
+      - "8000"            # internal only; no `ports:` -> not reachable from the host/internet
+    volumes:
+      - phishguard-data:/data
+      # Self-hosted training videos (optional; YouTube lessons need nothing).
+      - ./app/static/videos:/app/app/static/videos:ro
+    networks:
+      internal:
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).status==200 else 1)"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    depends_on:
+      web:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"     # HTTP/3
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN (e.g. phish.example.com) in .env or the shell}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data          # certificates + ACME account; keep across restarts
+      - caddy-config:/config
+    networks:
+      internal:
+        ipv4_address: 172.30.53.10
+    healthcheck:
+      # Caddy's admin API listens on localhost:2019 inside the container.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+
+networks:
+  internal:
+    ipam:
+      config:
+        - subnet: 172.30.53.0/24
+
+volumes:
+  phishguard-data:
+  caddy-data:
+  caddy-config:
