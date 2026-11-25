@@ -35,6 +35,21 @@ def test_form_field_token_is_accepted(client):
     assert r.status_code == 303
 
 
+def test_browser_same_origin_post_is_accepted(client):
+    """Regression: real browsers send Origin on form POSTs. Under the old
+    Referrer-Policy: no-referrer that Origin was "null" and every admin form
+    in a real browser failed the CSRF check (tests never sent an Origin)."""
+    r = client.post("/users", data={"email": "o@example.com"},
+                    headers={"Origin": "http://testserver"}, follow_redirects=False)
+    assert r.status_code == 303
+    assert client.get("/users").headers["Referrer-Policy"] == "same-origin"
+
+
+def test_null_origin_is_refused(client):
+    r = client.post("/users", data={"email": "x@example.com"}, headers={"Origin": "null"})
+    assert r.status_code == 403
+
+
 def test_cross_origin_post_is_refused_even_with_token(client):
     r = client.post("/users", data={"email": "x@example.com"},
                     headers={"Origin": "https://evil.example"})

@@ -52,5 +52,5 @@ def test_open_redirect_blocked_on_next(anon):
 def test_security_headers_present(client):
     r = client.get("/")
     assert r.headers["x-content-type-options"] == "nosniff"
-    assert r.headers["referrer-policy"] == "no-referrer"
+    assert r.headers["referrer-policy"] == "same-origin"
     assert r.headers["x-frame-options"] == "SAMEORIGIN"

@@ -375,7 +375,12 @@ def _is_raw_email(path: str) -> bool:
 def security_headers(path: str, nonce: str) -> dict[str, str]:
     headers = {
         "X-Content-Type-Options": "nosniff",
-        "Referrer-Policy": "no-referrer",
+        # same-origin, not no-referrer: under no-referrer browsers send
+        # "Origin: null" on every form POST (even same-origin), which the CSRF
+        # origin check must reject. same-origin keeps the real Origin on our own
+        # forms and still sends nothing to other sites, so tokens in our URLs
+        # (/t/..., ?next=) never leak cross-origin.
+        "Referrer-Policy": "same-origin",
         "X-Frame-Options": "SAMEORIGIN",
         "Cross-Origin-Opener-Policy": "same-origin",
         "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
