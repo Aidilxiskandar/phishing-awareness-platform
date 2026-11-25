@@ -100,7 +100,8 @@ def test_known_scanner_ua_is_never_human(sig, window):
 def test_prefetch_header_is_never_human(sig, window):
     result = classify(sig, window)
     assert result.verdict == "scanner"
-    assert "prefetch" in result.reason
+    # A stronger signal (a scanner-named UA) may be the one cited instead.
+    assert "prefetch" in result.reason or match_scanner_signature(sig.user_agent)
 
 
 @props

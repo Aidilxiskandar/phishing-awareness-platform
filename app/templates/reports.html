@@ -1,5 +1,118 @@
 {% extends "base.html" %}
+{% block head %}
+<style>
+  .mt-legend{display:flex; gap:16px; flex-wrap:wrap; font-size:13px; color:var(--muted);}
+  .mt-legend .k{display:inline-flex; align-items:center; gap:8px;}
+  .mt-legend .sw{width:12px; height:2px; border-radius:1px;}
+  .mt-legend .sw.bar{height:8px; width:8px; border-radius:2px;}
+  .trend-svg .line.rep{stroke:var(--green);}
+  .trend-svg .dot.rep{stroke:var(--green);}
+  .trend-svg .xlabel{fill:var(--faint); font-size:10px;}
+  .trend-svg .bar{fill:var(--n2);}
+  .trend-svg .bval{fill:var(--muted); font-size:10px; font-family:var(--mono);}
+  .sub-head{font-size:13px; color:var(--muted); margin:24px 0 8px;}
+  .rate{font-family:var(--mono); font-variant-numeric:tabular-nums;}
+  .ratebar{display:inline-block; width:64px; height:6px; border-radius:3px; background:var(--surface-2);
+    vertical-align:middle; margin-left:8px; overflow:hidden;}
+  .ratebar i{display:block; height:100%; background:var(--red);}
+</style>
+{% endblock %}
 {% block content %}
+
+<div class="card">
+  <div class="chart-head">
+    <div>
+      <h3>Trend over campaigns</h3>
+      <div class="sub">Share of recipients who clicked (human only) and who reported, per sent drill</div>
+    </div>
+    {% if trend %}
+    <div class="mt-legend">
+      <span class="k"><span class="sw" style="background:var(--accent)"></span>Human click rate</span>
+      <span class="k"><span class="sw" style="background:var(--green)"></span>Report rate</span>
+      <span class="k"><span class="sw bar" style="background:var(--n2)"></span>Scanner clicks filtered</span>
+    </div>
+    {% endif %}
+  </div>
+  {% if trend %}
+  {% set tc = trend_chart %}
+  <svg class="trend-svg" viewBox="0 0 {{ tc.w }} {{ tc.h }}" role="img" aria-label="Human click rate and report rate per campaign">
+    {% for g in tc.gridlines %}
+      <line class="grid" x1="{{ tc.x0 }}" y1="{{ g.y }}" x2="{{ tc.x1 }}" y2="{{ g.y }}"/>
+      <text class="glabel" x="{{ tc.w - 4 }}" y="{{ g.y + 3 }}" text-anchor="end">{{ g.val }}%</text>
+    {% endfor %}
+    {% if trend|length > 1 %}
+      <polyline class="line" points="{{ tc.lines.click_rate.points }}"/>
+      <polyline class="line rep" points="{{ tc.lines.report_rate.points }}"/>
+    {% endif %}
+    {% for p in tc.lines.report_rate.pts %}
+      <circle class="dot rep" cx="{{ p.x }}" cy="{{ p.y }}" r="3"><title>{{ p.name }}: {{ '%.0f' % p.val }}% reported</title></circle>
+    {% endfor %}
+    {% for p in tc.lines.click_rate.pts %}
+      <circle class="dot {{ 'dot-last' if loop.last }}" cx="{{ p.x }}" cy="{{ p.y }}" r="3.5"><title>{{ p.name }}: {{ '%.0f' % p.val }}% clicked</title></circle>
+    {% endfor %}
+    {% for l in tc.labels %}
+      <text class="xlabel" x="{{ l.x }}" y="{{ tc.h - 6 }}" text-anchor="middle">{{ l.name[:16] }}</text>
+    {% endfor %}
+  </svg>
+  {% set sc = scanner_chart %}
+  <div class="sub-head">Scanner clicks filtered per campaign (automated fetches, never counted as people)</div>
+  <svg class="trend-svg" viewBox="0 0 {{ sc.w }} {{ sc.h }}" role="img" aria-label="Scanner clicks filtered per campaign">
+    <line class="grid" x1="{{ sc.x0 }}" y1="{{ sc.base }}" x2="{{ sc.x1 }}" y2="{{ sc.base }}"/>
+    {% for b in sc.bars %}
+      <rect class="bar" x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" rx="2"><title>{{ b.name }}: {{ b.val }} scanner clicks</title></rect>
+      <text class="bval" x="{{ b.cx }}" y="{{ b.y - 3 }}" text-anchor="middle">{{ b.val }}</text>
+      <text class="xlabel" x="{{ b.cx }}" y="{{ sc.h - 6 }}" text-anchor="middle">{{ b.name[:16] }}</text>
+    {% endfor %}
+  </svg>
+
+  <table style="margin-top:16px">
+    <tr><th>Campaign</th><th>Sent (UTC)</th><th class="num">Recipients</th><th class="num">Human click rate</th>
+        <th class="num">Report rate</th><th class="num">Scanner clicks</th><th></th></tr>
+    {% for t in trend|reverse %}
+    <tr>
+      <td>{{ t.name }}</td>
+      <td class="ts">{{ t.sent_at.strftime('%Y-%m-%d') }}</td>
+      <td class="num">{{ t.targets }}</td>
+      <td class="num rate"{% if t.clicked %} style="color:var(--red)"{% endif %}>{{ '%.0f' % t.click_rate }}% <span style="color:var(--faint)">({{ t.clicked }})</span></td>
+      <td class="num rate">{{ '%.0f' % t.report_rate }}% <span style="color:var(--faint)">({{ t.reported }})</span></td>
+      <td class="num">{{ t.scanner_clicks }}</td>
+      <td class="num"><a href="/reports/campaigns/{{ t.id }}">Executive report</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <div class="empty">
+    <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+    <div>No sent campaigns yet. Send a drill from <a href="/phishing">Phishing</a> to start the trend.</div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Breakdown by group</h2>
+  <p style="color:var(--muted);font-size:13px">
+    Across all campaigns. A person in two groups counts in both. Worst click rate first.</p>
+  {% if groups %}
+  <table>
+    <tr><th>Group</th><th class="num">Members</th><th class="num">Emails sent</th><th class="num">Human clickers</th>
+        <th class="num">Click rate</th><th class="num">Reporters</th><th class="num">Report rate</th><th class="num">Scanner clicks</th></tr>
+    {% for g in groups %}
+    <tr>
+      <td>{{ g.name }}</td>
+      <td class="num">{{ g.members }}</td>
+      <td class="num">{{ g.targets }}</td>
+      <td class="num"{% if g.clicked %} style="color:var(--red)"{% endif %}>{{ g.clicked }}</td>
+      <td class="num rate">{% if g.targets %}{{ '%.0f' % g.click_rate }}%<span class="ratebar"><i style="width:{{ g.click_rate }}%"></i></span>{% else %}<span style="color:var(--faint)">not tested</span>{% endif %}</td>
+      <td class="num">{{ g.reported }}</td>
+      <td class="num rate">{% if g.targets %}{{ '%.0f' % g.report_rate }}%{% else %}—{% endif %}</td>
+      <td class="num">{{ g.scanner_clicks }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:var(--muted)">No groups yet. Create one on the <a href="/users">Users</a> tab.</p>
+  {% endif %}
+</div>
 
 <div class="card">
   <h2>Per-person risk</h2>

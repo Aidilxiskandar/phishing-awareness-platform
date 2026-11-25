@@ -258,6 +258,7 @@
     .card{padding:16px;}
   }
 </style>
+{% block head %}{% endblock %}
 </head>
 <body>
 {% set titles = {
@@ -328,11 +329,12 @@
   </div>
 </div>
 <script nonce="{{ csp_nonce(request) }}">
-  // Ask before destructive actions (buttons marked data-confirm). Inline
+  // data-confirm: ask before destructive actions; data-print: print the page. Inline
   // onclick handlers are blocked by the nonce-based Content-Security-Policy.
   document.addEventListener("click", function (e) {
     var b = e.target.closest("[data-confirm]");
     if (b && !window.confirm(b.getAttribute("data-confirm"))) e.preventDefault();
+    if (e.target.closest("[data-print]")) window.print();
   });
 </script>
 </body>

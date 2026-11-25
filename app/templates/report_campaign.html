@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}Report · {{ campaign.name }}{% endblock %}
+{% block head %}
+<style>
+  .rep-head{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;}
+  .rep-head h2{font-size:20px; line-height:28px; font-weight:500; margin:0;}
+  .rep-meta{display:grid; grid-template-columns:auto 1fr; gap:4px 16px; font-size:13px; margin-top:12px;}
+  .rep-meta dt{color:var(--faint);} .rep-meta dd{margin:0;}
+  .eyebrow{font-size:12px; color:var(--faint); margin:0 0 4px;}
+  .toolbar{display:flex; gap:8px; align-items:center;}
+  .summary{font-size:15px; line-height:24px; margin:0; max-width:880px;}
+  .summary b{font-weight:500;}
+  .recs{list-style:none; margin:0; padding:0; display:flex; flex-direction:column;}
+  .recs li{display:grid; grid-template-columns:64px 1fr; gap:12px; padding:12px 0;
+    border-bottom:1px solid var(--line);}
+  .recs li:last-child{border-bottom:0;}
+  .recs .t{font-weight:500;} .recs .d{color:var(--muted); font-size:13px;}
+  .footnote{font-size:12px; color:var(--faint); line-height:18px;}
+  .kpi-row.rep{grid-template-columns:repeat(5,1fr);}
+
+  @page{size:A4; margin:14mm;}
+  @media print{
+    :root{
+      color-scheme:light;
+      --bg:#fff; --bg2:#fff; --surface:#fff; --surface-2:#f1f1f2;
+      --line:rgba(0,0,0,.12); --line-2:rgba(0,0,0,.2);
+      --ink:#111; --muted:#444; --faint:#666;
+      --accent:#b26a00; --amber:#b26a00; --amber-soft:rgba(178,106,0,.1);
+      --green:#1e7a4f; --green-soft:rgba(30,122,79,.1);
+      --red:#c4282d; --red-soft:rgba(196,40,45,.1);
+      --n1:#ccc; --n2:#9a9aa0; --n3:#777;
+    }
+    body{font-size:12px; -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+    .sidebar,.topbar,.app-foot,.no-print{display:none !important;}
+    .app{display:block;}
+    main{padding:0; max-width:none;}
+    .card{border:1px solid var(--line); padding:14px 16px; margin-bottom:12px;
+      break-inside:avoid; page-break-inside:avoid;}
+    .kpi-row.rep{grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:12px;}
+    .kpi{padding:10px 12px;} .kpi .kpi-val{font-size:22px; line-height:26px;}
+    .splitbar .seg.hu{color:#fff;}
+    th{position:static;}
+    tr:hover td{background:none;}
+    a{text-decoration:none; color:inherit;}
+  }
+  @media (max-width:860px){ .kpi-row.rep{grid-template-columns:repeat(2,1fr);} }
+</style>
+{% endblock %}
+{% block content %}
+{% set k = kpis %}
+
+<div class="no-print" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap">
+  <a class="back" href="/reports">← Reports</a>
+  <div class="toolbar">
+    <a class="btn ghost btn-sm" href="/campaigns/{{ campaign.id }}">Campaign detail</a>
+    <button type="button" class="btn-sm" data-print>Print / save as PDF</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="rep-head">
+    <div>
+      <p class="eyebrow">Phishing simulation · executive report</p>
+      <h2>{{ campaign.name }}</h2>
+      <dl class="rep-meta">
+        <dt>Sent</dt><dd class="ts" style="color:var(--ink)">{{ campaign.sent_at.strftime('%Y-%m-%d %H:%M UTC') if campaign.sent_at else 'not sent' }}</dd>
+        <dt>Lure</dt><dd>“{{ campaign.subject }}” from {{ campaign.from_name }} &lt;{{ campaign.from_email }}&gt;</dd>
+        <dt>Recipients</dt><dd>{{ k.targets }} ({{ k.delivered }} delivered)</dd>
+        <dt>Generated</dt><dd class="ts" style="color:var(--ink)">{{ generated_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Summary</h2>
+  <p class="summary">
+    Of <b>{{ k.targets }}</b> recipients, <b style="color:var(--red)">{{ k.clicked }} ({{ '%.0f' % k.click_rate }}%)</b>
+    clicked the link themselves and <b style="color:var(--green)">{{ k.reported }} ({{ '%.0f' % k.report_rate }}%)</b>
+    reported it.
+    {% if k.scanner_clicks %}A further <b>{{ k.scanner_clicks }}</b> link fetches came from automated mail
+    scanners and were excluded, with the evidence listed below.{% endif %}
+    {% if prev %}The previous drill, “{{ prev.name }}”, had a {{ '%.0f' % prev.click_rate }}% click rate.{% endif %}
+  </p>
+</div>
+
+<div class="kpi-row rep">
+  <div class="kpi">
+    <span class="kpi-label">Human click rate</span>
+    <div class="kpi-val" style="color:var(--amber)">{{ '%.0f' % k.click_rate }}%</div>
+    <div class="kpi-foot">
+      {% if prev %}
+        {% set d = k.click_rate - prev.click_rate %}
+        {% if d > 0.5 %}<span class="delta up">+{{ '%.0f' % d }} pts</span>
+        {% elif d < -0.5 %}<span class="delta down">{{ '%.0f' % d }} pts</span>
+        {% else %}<span class="delta flat">±0</span>{% endif %}
+        <span class="kpi-note">vs previous</span>
+      {% else %}<span class="kpi-note">{{ k.clicked }} of {{ k.targets }} people</span>{% endif %}
+    </div>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Report rate</span>
+    <div class="kpi-val" style="color:var(--green)">{{ '%.0f' % k.report_rate }}%</div>
+    <div class="kpi-foot"><span class="kpi-note">{{ k.reported }} reported it</span></div>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Open rate</span>
+    <div class="kpi-val">{{ '%.0f' % k.open_rate }}%</div>
+    <div class="kpi-foot"><span class="kpi-note">pixel loads, indicative only</span></div>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Scanner clicks filtered</span>
+    <div class="kpi-val">{{ k.scanner_clicks }}</div>
+    <div class="kpi-foot"><span class="kpi-note">{{ '%.0f' % k.scanner_share }}% of raw clicks</span></div>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Clickers trained</span>
+    <div class="kpi-val">{{ k.trained_clickers }}/{{ k.clicked }}</div>
+    <div class="kpi-foot"><span class="kpi-note">completed a module</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Human vs scanner clicks</h2>
+  {% if k.raw_clicks %}
+  {% set hp = k.human_clicks / k.raw_clicks * 100 %}
+  {% set sp = k.scanner_clicks / k.raw_clicks * 100 %}
+  <div class="splitbar">
+    {% if k.human_clicks %}<div class="seg hu" style="width:{{ hp }}%">{{ '%.0f' % hp }}%</div>{% endif %}
+    {% if k.scanner_clicks %}<div class="seg sc" style="width:{{ sp }}%">{{ '%.0f' % sp }}%</div>{% endif %}
+    {% if k.unknown_clicks %}<div class="seg" style="width:{{ 100 - hp - sp }}%;color:var(--muted)">{{ '%.0f' % (100 - hp - sp) }}%</div>{% endif %}
+  </div>
+  <div class="split-legend">
+    <div class="sl"><span class="dot" style="background:var(--red)"></span>Human <b>{{ k.human_clicks }}</b></div>
+    <div class="sl"><span class="dot" style="background:var(--n2)"></span>Scanner <b>{{ k.scanner_clicks }}</b></div>
+    <div class="sl"><span class="dot" style="background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--n2)"></span>Unclassified <b>{{ k.unknown_clicks }}</b></div>
+  </div>
+  <table style="margin-top:16px">
+    <tr><th>Verdict</th><th>Evidence</th><th class="num">Clicks</th><th class="num">Fastest after send</th></tr>
+    {% for e in evidence %}
+    <tr>
+      <td><span class="verdict {{ e.verdict }}">{{ e.verdict }}</span></td>
+      <td style="color:var(--muted)">{{ e.reason }}</td>
+      <td class="num">{{ e.count }}</td>
+      <td class="num ts">{{ e.fastest | humandur if e.fastest is not none else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:var(--muted)">No clicks recorded for this campaign.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Top-risk people</h2>
+  <p style="color:var(--muted);font-size:13px">In this campaign. Human click = +3, open = +1, report = −2. Scanner clicks are not the person and score nothing.</p>
+  {% if top_risk %}
+  <table>
+    <tr><th>Name</th><th>Email</th><th>Dept</th><th class="num">Opens</th><th class="num">Human clicks</th>
+        <th class="num">Reported</th><th class="num">Score</th><th class="num">Band</th></tr>
+    {% for r in top_risk %}
+    <tr>
+      <td>{{ r.name or '—' }}</td>
+      <td>{{ r.email }}</td>
+      <td>{{ r.department or '—' }}</td>
+      <td class="num">{{ r.opens }}</td>
+      <td class="num"{% if r.human_clicks %} style="color:var(--red)"{% endif %}>{{ r.human_clicks }}</td>
+      <td class="num">{{ r.reports }}</td>
+      <td class="num" style="font-weight:500">{{ r.score }}</td>
+      <td class="num">
+        {% if r.band == 'High' %}<span class="pill bad">High</span>
+        {% elif r.band == 'Medium' %}<span class="pill warn">Medium</span>
+        {% else %}<span class="pill">Low</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:var(--muted)">Nobody in this campaign has a positive risk score.</p>
+  {% endif %}
+</div>
+
+{% if groups %}
+<div class="card">
+  <h2>By group</h2>
+  <table>
+    <tr><th>Group</th><th class="num">Recipients</th><th class="num">Human clickers</th><th class="num">Click rate</th>
+        <th class="num">Report rate</th><th class="num">Scanner clicks</th></tr>
+    {% for g in groups %}
+    <tr>
+      <td>{{ g.name }}</td>
+      <td class="num">{{ g.targets }}</td>
+      <td class="num">{{ g.clicked }}</td>
+      <td class="num rate"{% if g.clicked %} style="color:var(--red)"{% endif %}>{{ '%.0f' % g.click_rate }}%</td>
+      <td class="num rate">{{ '%.0f' % g.report_rate }}%</td>
+      <td class="num">{{ g.scanner_clicks }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Recommendations</h2>
+  <ul class="recs">
+    {% for r in recommendations %}
+    <li>
+      <span>{% if r.level == 'act' %}<span class="pill bad">Act</span>{% elif r.level == 'watch' %}<span class="pill warn">Watch</span>{% else %}<span class="pill good">OK</span>{% endif %}</span>
+      <div><div class="t">{{ r.title }}</div><div class="d">{{ r.detail }}</div></div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+
+<p class="footnote">
+  Method: rates are per person (someone who clicks three times is one clicker), divided by recipients.
+  Every click is classified from logged IP, User-Agent, request method, timing and whether the landing
+  page ran JavaScript; scanners never run it. Raw evidence for each event is in the Reports tab and the
+  CSV export. Simulation run on consenting or authorised recipients only.
+</p>
+
+{% endblock %}

@@ -4,9 +4,9 @@ from datetime import UTC, datetime, timedelta
 from sqlmodel import select
 
 from app.mailer import render_email_html
-from app.services.risk import risk_scores as _risk_scores
 from app.models import Campaign, Event, EventType, Target, User, Verdict
 from app.services.reporting import campaign_report_metrics
+from app.services.risk import risk_scores as _risk_scores
 
 CHROME = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/537.36 "
           "(KHTML, like Gecko) Chrome/125.0 Safari/537.36")

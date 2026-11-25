@@ -11,7 +11,9 @@
                           | selectattr('verdict.value','equalto','unknown') | list | length %}
 {% set rm = report_metrics %}
 
-<p style="margin-top:0"><a class="back" href="/phishing">← All campaigns</a></p>
+<p style="margin-top:0;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+  <a class="back" href="/phishing">← All campaigns</a>
+  <a class="btn ghost btn-sm" href="/reports/campaigns/{{ campaign.id }}">Executive report</a></p>
 
 {% if notice %}
 <div class="notice">

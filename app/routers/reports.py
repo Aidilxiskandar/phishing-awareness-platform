@@ -18,7 +18,9 @@ from app.models import (
     Campaign,
     Event,
     Target,
+    utcnow,
 )
+from app.services.analytics import campaign_report, reports_overview
 from app.services.risk import risk_scores as _risk_scores
 from app.web import record_audit, templates
 
@@ -46,9 +48,23 @@ def reports(request: Request):
         audit = session.exec(select(AuditLog).order_by(AuditLog.id.desc()).limit(20)).all()
         target_by_id = {t.id: t for t in targets}
         campaign_by_id = {c.id: c for c in campaigns}
+        overview = reports_overview(session)
     return templates.TemplateResponse(request, "reports.html", {
         "tab": "reports", "risk": risk, "events": events, "audit": audit,
         "target_by_id": target_by_id, "campaign_by_id": campaign_by_id, "dry_run": settings.dry_run,
+        **overview,
+    })
+
+
+@router.get("/reports/campaigns/{cid}", response_class=HTMLResponse)
+def campaign_report_page(request: Request, cid: int):
+    """Print-ready executive report for one campaign (browser "Save as PDF")."""
+    with get_session() as session:
+        report = campaign_report(session, cid)
+    if report is None:
+        return HTMLResponse("Campaign not found", status_code=404)
+    return templates.TemplateResponse(request, "report_campaign.html", {
+        "tab": "reports", "dry_run": settings.dry_run, "generated_at": utcnow(), **report,
     })
 
 
