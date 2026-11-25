@@ -65,6 +65,8 @@ from app.models import (
 from app.sampledata import generate_staff
 from app.services.charts import donut as _donut
 from app.services.charts import trend as _trend
+from app.services.email_templates import TEMPLATES as EMAIL_TEMPLATES
+from app.services.email_templates import get_template as get_email_template
 from app.services.erasure import erase_user
 from app.services.risk import risk_scores as _risk_scores
 from app.services.video import video_info as _video_info
@@ -418,19 +420,30 @@ def phishing(request: Request):
             "reports": reports[c.id],
         } for c in campaigns]
     return templates.TemplateResponse(request, "phishing.html", {
-        "tab": "phishing", "rows": rows, "dry_run": settings.dry_run,
+        "tab": "phishing", "rows": rows, "email_templates": EMAIL_TEMPLATES,
+        "dry_run": settings.dry_run,
     })
 
 
 @app.post("/campaigns")
 def create_campaign(request: Request, name: str = Form(...), subject: str = Form(...),
-                    from_name: str = Form(...), from_email: str = Form(...)):
+                    from_name: str = Form(...), from_email: str = Form(...),
+                    template_slug: str = Form(""), body: str = Form("")):
+    # A template seeds the sender/subject/body/CTA and snapshots its red flags so
+    # the teaching points survive later library changes. The admin can still
+    # override the subject and body (kept custom), so a custom drill is allowed.
+    tmpl = get_email_template(template_slug) if template_slug else None
+    cta_label = tmpl.cta_label if tmpl else ""
+    red_flags_json = tmpl.red_flags_json if tmpl else "[]"
+    body = body.strip() or (tmpl.body if tmpl else "")
     with get_session() as session:
-        c = Campaign(name=name, subject=subject, from_name=from_name, from_email=from_email)
+        c = Campaign(name=name, subject=subject, from_name=from_name, from_email=from_email,
+                     template_slug=template_slug, body=body, cta_label=cta_label,
+                     red_flags_json=red_flags_json)
         session.add(c)
         session.commit()
         cid = c.id
-    _record_audit(request, "campaign.create", f"#{cid} '{name}'")
+    _record_audit(request, "campaign.create", f"#{cid} '{name}' template={template_slug or 'custom'}")
     return RedirectResponse(f"/campaigns/{cid}", status_code=303)
 
 
@@ -473,7 +486,8 @@ def preview_email(request: Request, cid: int, tid: int):
         urls = build_tracking_urls(target.token)
     return templates.TemplateResponse(request, "email_preview.html", {
         "tab": "phishing", "campaign": campaign,
-        "target": target, "urls": urls, "dry_run": settings.dry_run,
+        "target": target, "urls": urls, "red_flags": campaign.red_flags,
+        "dry_run": settings.dry_run,
     })
 
 
@@ -487,6 +501,41 @@ def raw_email(cid: int, tid: int):
             return HTMLResponse("Not found", status_code=404)
         html = render_email_html(campaign, target, preview=True)
     return HTMLResponse(html)
+
+
+def _preview_pair(tmpl):
+    """An unsaved Campaign + Target built from a library template, for previewing
+    a drill before any campaign exists. Never persisted; the token is a placeholder."""
+    campaign = Campaign(name=tmpl.name, from_name=tmpl.from_name, from_email=tmpl.from_email,
+                        subject=tmpl.subject, body=tmpl.body, cta_label=tmpl.cta_label,
+                        template_slug=tmpl.slug, red_flags_json=tmpl.red_flags_json)
+    target = Target(campaign_id=0, user_id=0, email="recipient@example.com",
+                    name="Sam Taylor", token="preview")
+    return campaign, target
+
+
+@app.get("/templates/{slug}/preview", response_class=HTMLResponse)
+def preview_template(request: Request, slug: str):
+    """Preview a library template before creating a campaign (reuses email_preview.html)."""
+    tmpl = get_email_template(slug)
+    if not tmpl:
+        return HTMLResponse("Template not found", status_code=404)
+    campaign, target = _preview_pair(tmpl)
+    return templates.TemplateResponse(request, "email_preview.html", {
+        "tab": "phishing", "campaign": campaign, "target": target,
+        "urls": build_tracking_urls(target.token), "red_flags": tmpl.red_flags,
+        "email_url": f"/templates/{slug}/email", "dry_run": settings.dry_run,
+    })
+
+
+@app.get("/templates/{slug}/email", response_class=HTMLResponse)
+def template_email(slug: str):
+    """Raw rendered email HTML for a template preview iframe (no tracking fired)."""
+    tmpl = get_email_template(slug)
+    if not tmpl:
+        return HTMLResponse("Not found", status_code=404)
+    campaign, target = _preview_pair(tmpl)
+    return HTMLResponse(render_email_html(campaign, target, preview=True))
 
 
 @app.post("/campaigns/{cid}/targets")

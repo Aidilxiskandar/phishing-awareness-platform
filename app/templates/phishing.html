@@ -7,18 +7,62 @@
     <div class="row">
       <div><label>Campaign name</label>
         <input type="text" name="name" placeholder="Q1 new-joiner drill" required></div>
-      <div><label>Email subject</label>
-        <input type="text" name="subject" value="Action required: verify your account" required></div>
+      <div><label>Drill template</label>
+        <select name="template_slug" id="tmpl-select"
+                style="background:#0b1220;border:1px solid var(--line);color:var(--ink);padding:8px 10px;border-radius:6px;width:100%">
+          <option value="">Custom (no template)</option>
+          {% for t in email_templates %}
+          <option value="{{ t.slug }}"
+                  data-subject="{{ t.subject }}" data-from-name="{{ t.from_name }}"
+                  data-from-email="{{ t.from_email }}" data-body="{{ t.body }}">
+            {{ t.name }} — {{ t.category }} ({{ t.difficulty }})</option>
+          {% endfor %}
+        </select>
+        <a href="#" id="tmpl-preview" target="_blank"
+           style="display:none;font-size:12.5px;color:var(--blue);margin-top:6px">👁 Preview this template in a new tab</a>
+      </div>
     </div>
     <div class="row">
+      <div><label>Email subject</label>
+        <input type="text" name="subject" id="f-subject" value="Action required: verify your account" required></div>
       <div><label>From name</label>
-        <input type="text" name="from_name" value="IT Security" required></div>
-      <div><label>From email</label>
-        <input type="email" name="from_email" value="it-security@example.com" required></div>
+        <input type="text" name="from_name" id="f-from-name" value="IT Security" required></div>
     </div>
-    <button type="submit">Create campaign</button>
+    <div class="row">
+      <div><label>From email</label>
+        <input type="email" name="from_email" id="f-from-email" value="it-security@example.com" required></div>
+    </div>
+    <div>
+      <label>Email body <span style="color:var(--muted);font-weight:400">(leave blank to use the template or default body; you can customise it)</span></label>
+      <textarea name="body" id="f-body" rows="5"
+                style="width:100%;background:#0b1220;border:1px solid var(--line);color:var(--ink);padding:10px;border-radius:6px;font-family:inherit"
+                placeholder="Custom message body (plain text). Blank lines separate paragraphs. The tracked button is always added automatically."></textarea>
+    </div>
+    <button type="submit" style="margin-top:12px">Create campaign</button>
   </form>
 </div>
+
+<script>
+  (function () {
+    var sel = document.getElementById("tmpl-select");
+    if (!sel) return;
+    var preview = document.getElementById("tmpl-preview");
+    sel.addEventListener("change", function () {
+      var o = sel.options[sel.selectedIndex];
+      var slug = o.value;
+      if (slug) {
+        document.getElementById("f-subject").value = o.dataset.subject || "";
+        document.getElementById("f-from-name").value = o.dataset.fromName || "";
+        document.getElementById("f-from-email").value = o.dataset.fromEmail || "";
+        document.getElementById("f-body").value = o.dataset.body || "";
+        preview.href = "/templates/" + encodeURIComponent(slug) + "/preview";
+        preview.style.display = "inline-block";
+      } else {
+        preview.style.display = "none";
+      }
+    });
+  })();
+</script>
 
 <div class="card">
   <h2>Campaigns</h2>

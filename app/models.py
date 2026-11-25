@@ -87,6 +87,21 @@ class Campaign(SQLModel, table=True):
     status: CampaignStatus = Field(default=CampaignStatus.DRAFT)
     created_at: datetime = Field(default_factory=utcnow)
     sent_at: datetime | None = None
+    # Drill email template (see app/services/email_templates.py). Blank = the
+    # built-in default body. `body`/`cta_label` hold the (possibly customised)
+    # message text; `red_flags_json` snapshots the teaching points at creation
+    # time so they survive library changes.
+    template_slug: str = ""
+    body: str = ""
+    cta_label: str = ""
+    red_flags_json: str = "[]"
+
+    @property
+    def red_flags(self) -> list[str]:
+        try:
+            return json.loads(self.red_flags_json)
+        except (ValueError, TypeError):
+            return []
 
 
 class Target(SQLModel, table=True):
