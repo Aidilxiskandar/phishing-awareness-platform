@@ -17,7 +17,7 @@ cov: ## Run tests with a coverage report
 	pytest --cov=app --cov-report=term-missing
 
 lint: ## Lint with ruff
-	ruff check app tests
+	ruff check app tests scripts
 
 fmt: ## Auto-fix lint issues
 	ruff check --fix app tests
@@ -30,3 +30,6 @@ docker-up: ## Build and run via docker compose
 
 docker-down: ## Stop docker compose
 	docker compose down
+
+smoke: ## Real-browser smoke test against a running server (BASE=http://127.0.0.1:8765)
+	node scripts/browser_smoke.mjs $${BASE:-http://127.0.0.1:8765}

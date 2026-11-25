@@ -61,7 +61,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="PhishGuard — Phishing Awareness Platform",
-    version="2.4.0",
+    version="3.0.0",
     lifespan=lifespan,
     # Hide the interactive API schema in production.
     docs_url=None if settings.is_prod else "/docs",

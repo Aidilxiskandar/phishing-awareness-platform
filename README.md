@@ -1,179 +1,171 @@
-# Phishing Awareness Platform
+# PhishGuard
 
-A self-hosted phishing-simulation and security-awareness tool — a small, honest
-take on what KnowBe4 does. It runs a phishing drill against a **consenting** test
-list, tracks opens / clicks / reports, and — the point of the whole thing —
-**tells a real human click apart from an automated scanner click, with evidence.**
+**Self-hosted phishing simulation and security-awareness training that tells a
+real human click apart from an automated scanner click, with evidence.**
 
-> Portfolio / learning project. Part of my cybersecurity track alongside my Home
-> SOC Lab and SME Compliance Toolkit.
+[![CI](https://github.com/Aidilxiskandar/phishing-awareness-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/Aidilxiskandar/phishing-awareness-platform/actions/workflows/ci.yml)
+![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
+![Coverage 95%](https://img.shields.io/badge/coverage-95%25-brightgreen)
+![License MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
-## Why click accuracy
+![PhishGuard dashboard](docs/screenshots/dashboard.png)
 
-This started from a real problem at my internship. A phishing-assessment vendor
-reported "1 clicker out of 14 detected clicks" and blamed Outlook / Microsoft
-link scanning — but four people admitted to my face they had really clicked.
-Nobody could cleanly separate a machine click from a human click, so the result
-came down to *"trust us."*
+## The problem it solves
 
-Email security gateways (Microsoft SafeLinks, Proofpoint, Barracuda, Mimecast…)
-and link-preview bots routinely **fetch every link in an email before a human
-ever sees it**, which inflates click counts. This tool logs the raw IP,
-User-Agent and timing on every click and classifies it:
+Mail security gateways (Microsoft Defender Safe Links, Proofpoint, Mimecast,
+Barracuda...) and link-preview bots **open every link in an email before a person
+ever sees it**. Most phishing tools count those as clicks, so results are inflated
+and nobody can prove which clicks were people. A typical outcome: a vendor reports
+"1 clicker out of 14" and blames the scanners, staff say otherwise, and the
+programme loses credibility.
 
-| Signal | Verdict |
-|---|---|
-| Landing page **ran JavaScript** (scanners don't) | **human** (decisive) |
-| Prefetch/preview header (`Sec-Purpose: prefetch`, …) | scanner |
-| User-Agent matches a known scanner/bot | scanner |
-| `HEAD` request (a probe, not a visit) | scanner |
-| Empty User-Agent | scanner |
-| Click within the scan window, no JS confirm yet | unknown (held) |
-| Browser UA, no red flags, outside the window | human |
+PhishGuard logs the raw evidence of every interaction (IP, User-Agent, headers,
+timing) and classifies it. In the demo drill below, **53 human clicks were
+separated from 137 scanner fetches**, and every verdict has a reason an auditor
+can read.
 
-The logic lives in [`app/detection.py`](app/detection.py) as a pure, unit-tested
-function. Every verdict ships with a human-readable reason shown in the dashboard,
-so a disputed click can be answered with evidence instead of "trust us".
+![Executive report: human vs scanner clicks with evidence](docs/screenshots/executive-report.png)
 
-## Ethics (non-negotiable)
+## Features
 
-This is a dual-use tool. **Only run it against your own test accounts or with
-written authorisation.** Never phish real people without explicit permission.
-The sender refuses any recipient not marked as consenting.
+**Phishing simulation**
+- Campaigns from a library of drill templates (invoice, password expiry, parcel,
+  payroll, MFA alert, CEO request...) with red-flag notes, or fully custom content
+- Target individuals or whole staff groups; resumable, never-double-send delivery
+- Per-recipient email preview that fires no tracking events
+- Dry-run mode (no SMTP needed) for demos and testing
 
-## Tabs
+**Click-accuracy engine** ([`app/detection.py`](app/detection.py))
+- 45 named scanner families (email security, mail proxies, link previews,
+  crawlers, headless browsers, HTTP libraries), matched on product tokens so
+  ordinary browsers can't trip them
+- Decisive human signal: the landing page's JavaScript beacon (scanners don't run JS)
+- Sandbox-aware: self-declared automation (headless UA, prefetch, DevTools
+  headers) outranks the JS beacon, because detonation sandboxes do run JS
+- Optional operator-declared scanner IP ranges (`SCANNER_NETWORKS`)
+- Corporate web-proxy headers (Zscaler, Palo Alto...) never turn a real person into a "scanner"
 
-- **Dashboard** — KPIs across everything (users, campaigns, human click rate,
-  scanner clicks filtered, reports) and recent activity.
-- **Phishing** — create campaigns, pick recipients from the user directory, send
-  the drill, and see each campaign's evidence log.
-- **Training** — micro-lessons + short quizzes (seeded on first run). Shown after a
-  click, but anyone can take them; results are tracked.
-- **Users** — the global people directory, with the per-person consent gate.
-  One-click **"Generate staff"** creates a batch of realistic random people for
-  testing. **Groups** let you bucket staff (e.g. "New staff", "Failed phishing —
-  Nov"): create a group, bulk-assign checked users to it, and filter the directory
-  by group. A campaign can then target a whole group at once.
-- **Reports** — per-person risk score across all campaigns, the full evidence log,
-  and a one-click CSV export.
+**Reporting behaviour**
+- Every drill email carries a per-recipient "Report this email" link
+- Scanner-proof: a fetch shows a confirmation page, and only the browser's
+  confirmation records the report, once per person
+- Report rate, time to first report, reported-without-clicking metrics
 
-## Stack
+**Training**
+- Clickers land on a short awareness page, then a public, token-scoped lesson
+  (video + key points + quiz) with no admin login required
+- Five CISA "Secure Our World" video modules with quizzes and a pass mark
+- Completion tracked per person; self-hosted videos supported (Remotion pipeline in `video/`)
 
-Python · FastAPI · SQLModel (SQLite) · Jinja2. No build step. Training content is
-seeded automatically on first run.
+**Reporting and analytics**
+- Dashboard: phish-prone trend, risk distribution, engagement funnel, click accuracy
+- Reports: trend across campaigns, breakdown by staff group, per-person risk scores
+- Print-ready executive report per campaign (Save as PDF) with plain-language recommendations
+- Full evidence log and CSV export
+
+**Privacy and governance**
+- Consent gate enforced in code: the sender refuses non-consenting recipients
+- Recipient domain allow-list for real sends
+- Evidence retention purge (`RETENTION_DAYS`) and right-to-erasure (GDPR Art. 17 / PDPA)
+  that anonymises a person everywhere while keeping campaign totals correct
+- Audit log of admin actions
+
+| Campaign detail | Trend and group breakdown | Mobile |
+| --- | --- | --- |
+| ![Campaign](docs/screenshots/campaign.png) | ![Reports](docs/screenshots/reports.png) | ![Mobile](docs/screenshots/mobile-dashboard.png) |
+
+## Security
+
+PhishGuard holds staff PII and click evidence, so the admin surface is hardened:
+
+- Deny-by-default authentication; only recipient tracking endpoints are public
+- Per-session CSRF tokens on every form plus an Origin check
+- Login lockout after 5 failures; sessions rotated on login, revoked on logout,
+  8-hour absolute lifetime; `__Host-` secure cookie in production
+- Nonce-based Content-Security-Policy (no inline script), sandboxed email previews,
+  HSTS, `no-store` on admin pages
+- Evidence-log IPs can't be forged: `X-Forwarded-For` is honoured only from trusted proxies
+- Production refuses to start without a secret key, admin password and SMTP
 
 ## Quick start
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env            # defaults work out of the box (dry-run mode)
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload        # http://127.0.0.1:8000  (admin / phishguard-dev)
 ```
 
-Open http://127.0.0.1:8000
+With no SMTP configured the app runs in **dry-run mode**: sending a drill prints
+each email and its tracking links to the console.
 
-With no SMTP configured the app runs in **dry-run mode**: "sending" a drill prints
-each email and its tracking URLs to the console instead of mailing anyone. To send
-for real, fill in the `SMTP_*` values in `.env`.
+**See the engine work in 2 minutes:** add yourself as a consenting user, create a
+campaign, send it, then open your click link in a browser (logged as **human**)
+and `curl` the same link (logged as **scanner**).
 
-### Try the whole flow (dry-run)
+**Full demo data:** start a throwaway server and run the drill simulator, which
+generates 300 staff, a campaign, scanner prefetches and realistic human behaviour:
 
-1. Create a campaign on the dashboard.
-2. Add a recipient (yourself / a test address).
-3. Click **Send drill** — the tracking URLs print to the console.
-4. Paste a recipient's click URL into a browser → you land on the awareness page,
-   and the dashboard logs a **human** click (your browser ran the JS beacon).
-5. `curl` the same URL → logged as a **scanner** click (`curl` User-Agent, no JS).
+```bash
+DATABASE_URL=sqlite:///demo.db TRUSTED_PROXIES=127.0.0.1 uvicorn app.main:app --port 8765
+python scripts/simulate_drill.py --db demo.db
+```
 
-That side-by-side is the demo: the browser and the scanner hit the identical link,
-and the platform tells them apart.
+## Deploy
 
-## Tests
+```bash
+cp .env.example .env     # set DOMAIN, BASE_URL, SECRET_KEY, ADMIN_PASSWORD, SMTP_*
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Caddy obtains a TLS certificate automatically; the app runs read-only and
+non-root on an internal network and migrates its database on start. The
+**[deployment guide](docs/DEPLOYMENT.md)** covers prerequisites, configuration,
+a 5-minute verification drill, backups, retention and upgrades.
+
+For a local trial: `docker compose up --build` (dev mode, dry-run email).
+
+## Quality
 
 ```bash
 pip install -r requirements-dev.txt
-pytest                 # or: make test
-pytest --cov=app       # coverage
-ruff check app tests   # lint
+make test                    # 194 tests, 95% coverage (CI enforces >= 85%)
+make lint                    # ruff
+node scripts/browser_smoke.mjs http://127.0.0.1:8765   # real-browser end-to-end
 ```
 
-`tests/` covers the detection engine (a scanner click must never be counted as a
-human click), the auth guard, the consent gate, send-flow idempotency, and the
-XSS/CSV hardening — ~70%+ coverage.
+- Property-based tests (Hypothesis) on the detection engine's invariants
+- A dependency-free headless-Chrome smoke test drives the full drill (login,
+  campaign, send, human click, report, staff training, every tab) and fails on any
+  HTTP error, CSP violation or JS error; it runs in CI on every push
+- `pip-audit` dependency scan in CI
 
-## Deployment
+## Architecture
 
-The app requires authentication and is production-shaped, but keeps the
-architecture honest for its scale (SQLite + background tasks; no queue/Postgres
-until you actually need them).
-
-### Docker
-
-```bash
-docker compose up --build        # http://localhost:8000  (SQLite persisted in a volume)
+```
+app/
+  main.py          app factory: middleware (auth, CSRF, headers), routers
+  routers/         auth, dashboard, phishing, users, training, reports, tracking
+  services/        risk, analytics, reporting, email templates, erasure, charts, video
+  detection.py     click-accuracy engine (pure function, no I/O)
+  security.py      sessions, CSRF, throttling, client IP, security headers
+alembic/           schema migrations (app.migrate handles fresh / legacy / managed DBs)
+scripts/           drill simulator, browser smoke test
+video/             Remotion source for self-hosted training animations
 ```
 
-The container migrates the database on start, and mounts `app/static/videos/`
-read-only so rendered training videos play.
+Python 3.12 · FastAPI · SQLModel (SQLite, WAL) · Jinja2 · Alembic. Server-rendered
+with no frontend build step; charts are inline SVG.
 
-### Production configuration
+## Ethics
 
-Set these before running in production (the app refuses to boot without them when
-`ENV=prod`):
-
-| Variable | Purpose |
-|---|---|
-| `ENV=prod` | enables fail-fast checks, secure cookies, hides `/docs` |
-| `SECRET_KEY` | session-cookie signing (`python -c "import secrets;print(secrets.token_urlsafe(32))"`) |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | the admin login |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | real email sending (omit for dry-run) |
-| `BASE_URL` | public URL the tracked links point back to |
-| `TRUSTED_PROXIES` | proxy IP(s) whose `X-Forwarded-For` is trusted |
-
-Put the app behind TLS. In dev, login is `admin` / `phishguard-dev` and email is
-dry-run (printed to the console). See `.env.example` for the full list.
-
-### Database migrations
-
-A fresh database is created automatically on first run (dev/test). For a managed
-deployment, use Alembic to own the schema:
-
-```bash
-python -m app.migrate    # create/upgrade the schema (safe to run on every start)
-alembic revision --autogenerate -m "describe change"   # after a model change
-```
-
-`app.migrate` handles an empty database, an Alembic-managed one, and a legacy
-database first built by `create_all` (it stamps the baseline, then upgrades). The
-Docker image runs it automatically before starting the server. When an
-`alembic_version` table exists, the app leaves schema creation to Alembic.
-
-### Privacy: retention & right to erasure
-
-```bash
-python -m app.maintenance                      # purge events older than RETENTION_DAYS
-python -m app.maintenance erase person@corp.com  # erase one person (GDPR Art. 17 / PDPA)
-```
-
-Erasure is also an **Erase** button per row on the Users tab. It anonymises
-rather than deletes: the person becomes an `erased-<id>@erased.invalid`
-placeholder, their name/department/consent are cleared, IP + user-agent are wiped
-from their events, quiz results are unlinked, group memberships are removed,
-earlier audit entries mentioning their email are redacted, and their tracking
-tokens are rotated so links in already-delivered emails stop working. Campaign
-totals stay correct, and the erasure itself is audited by user id only.
+PhishGuard is dual-use. **Run it only against consenting test accounts or with
+written authorisation from the organisation.** The consent gate and domain
+allow-list are enforced in code, but authorisation is the operator's
+responsibility. See [LICENSE](LICENSE).
 
 ## Roadmap
 
-- **MVP (done):** campaigns, tracked send, open pixel, click classification, JS
-  confirm, report endpoint, evidence-log dashboard.
-- **v2 (done):** five-tab UI (Dashboard / Phishing / Training / Users / Reports),
-  global user directory, awareness micro-lessons + quizzes, per-person risk score,
-  CSV evidence export.
-- **v2.1 (done):** random staff generator, staff groups (create / assign / filter),
-  and group-based campaign targeting.
-- **v2.2 (done):** professional UI refresh — branded "PhishGuard" sidebar with icons,
-  topbar with page titles, refined dark theme, elevated cards, better tables/forms.
-- **Next:** CSV *import* of users, scheduled campaigns, email-template library, a
-  Flutter admin app.
+CSV import of staff, scheduled and recurring campaigns, automatic training
+assignment after a click, SSO (OIDC) for admins, multi-admin roles.
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
