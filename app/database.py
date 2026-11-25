@@ -41,21 +41,6 @@ def init_db() -> None:
     if "alembic_version" not in inspect(engine).get_table_names():
         SQLModel.metadata.create_all(engine)
     _seed_training()
-    _ensure_demo_video()
-
-
-def _ensure_demo_video() -> None:
-    """Wire the first module to a local video path so the player is demoable.
-    Idempotent: only sets it when the module has no video yet."""
-    from app.models import TrainingModule
-    with get_session() as session:
-        m = session.exec(
-            select(TrainingModule).where(TrainingModule.slug == "spotting-phishing")
-        ).first()
-        if m and not m.video_url:
-            m.video_url = "/static/videos/spotting-phishing.mp4"
-            session.add(m)
-            session.commit()
 
 
 def get_session() -> Session:
@@ -67,112 +52,6 @@ def get_session() -> Session:
 
 # --- seed ------------------------------------------------------------------
 
-_SEED_MODULES = [
-    {
-        "slug": "spotting-phishing",
-        "title": "Spotting a phishing email",
-        "summary": "The five signals that give a phishing email away.",
-        "order": 1,
-        "sources": [
-            {"kind": "video", "publisher": "CISA", "title": "Recognize and Report Phishing",
-             "url": "https://www.youtube.com/watch?v=JlQovysQBn0"},
-            {"kind": "video", "publisher": "CISA", "title": "How to Avoid Phishing! (We Can Secure Our World)",
-             "url": "https://www.youtube.com/watch?v=sg0kQYvTlnc"},
-            {"kind": "guide", "publisher": "CISA", "title": "Recognize and Report Phishing",
-             "url": "https://www.cisa.gov/secure-our-world/recognize-and-report-phishing"},
-            {"kind": "guide", "publisher": "FTC", "title": "How to Recognize and Avoid Phishing Scams",
-             "url": "https://consumer.ftc.gov/articles/how-recognize-and-avoid-phishing-scams"},
-            {"kind": "guide", "publisher": "UK NCSC", "title": "Phishing: Spot and report scam emails, texts, websites and calls",
-             "url": "https://www.ncsc.gov.uk/collection/phishing-scams"},
-        ],
-        "body": "\n".join([
-            "Urgency and threats: 'verify within 24 hours or your account is suspended'.",
-            "A sender address that looks almost right but isn't (it-support@micros0ft.com).",
-            "Links that don't go where they claim - hover to see the real destination first.",
-            "Requests for your password, MFA code, or payment details.",
-            "Generic greetings and small spelling or grammar slips.",
-        ]),
-        "questions": [
-            {
-                "prompt": "An email says your account will be suspended in 2 hours unless you log in via its link. What's the biggest red flag?",
-                "choices": ["It has a company logo", "Manufactured urgency and a threat", "It was sent in the morning", "It is addressed to you"],
-                "correct_index": 1,
-            },
-            {
-                "prompt": "The safest way to check where a link really goes is to:",
-                "choices": ["Click it and see", "Hover over it and read the real URL first", "Forward it to a colleague", "Reply and ask the sender"],
-                "correct_index": 1,
-            },
-            {
-                "prompt": "A real IT department will normally never ask you to:",
-                "choices": ["Restart your computer", "Reply with your password or MFA code", "Update your software", "Attend a training session"],
-                "correct_index": 1,
-            },
-            {
-                "prompt": "An email comes from it-support@micros0ft.com. What gives it away?",
-                "choices": ["Nothing, it's Microsoft's real domain", "The 0 (zero) in place of the letter o: the sender is almost right, but not quite", "It uses lowercase letters", "IT emails always come from Gmail"],
-                "correct_index": 1,
-            },
-            {
-                "prompt": "When you're unsure whether an email is real, what does the golden rule say to do?",
-                "choices": ["Click, then check", "Stop, check, report", "Reply, wait, delete", "Forward it to everyone"],
-                "correct_index": 1,
-            },
-        ],
-    },
-    {
-        "slug": "password-mfa-safety",
-        "title": "Passwords & MFA safety",
-        "summary": "Why MFA matters and how attackers try to get around it.",
-        "order": 2,
-        "sources": [
-            {"kind": "video", "publisher": "CISA", "title": "How to Turn on MFA! (We Can Secure Our World)",
-             "url": "https://www.youtube.com/watch?v=QWwaidg3AtY"},
-            {"kind": "video", "publisher": "CISA", "title": "Make Your Accounts Safer with Multifactor Authentication (MFA)",
-             "url": "https://www.youtube.com/watch?v=XIlF2qkav5c"},
-            {"kind": "video", "publisher": "CISA", "title": "How to Make Strong Passwords! (We Can Secure Our World)",
-             "url": "https://www.youtube.com/watch?v=XXrbut5xRbE"},
-            {"kind": "guide", "publisher": "CISA", "title": "More than a Password: multifactor authentication",
-             "url": "https://www.cisa.gov/MFA"},
-            {"kind": "guide", "publisher": "CISA", "title": "Implementing Number Matching in MFA Applications (fact sheet, PDF)",
-             "url": "https://www.cisa.gov/sites/default/files/publications/fact-sheet-implement-number-matching-in-mfa-applications-508c.pdf"},
-        ],
-        "body": "\n".join([
-            "Use a long, unique password for every account - a password manager makes this easy.",
-            "Turn on multi-factor authentication (MFA) everywhere you can.",
-            "Never approve an MFA prompt you didn't start - attackers spam prompts hoping you tap 'approve'.",
-            "No legitimate service will ask you to read your MFA code to someone.",
-            "If you ever enter a password on a page you reached from an email, change it and tell IT.",
-        ]),
-        "questions": [
-            {
-                "prompt": "You get an MFA approval prompt on your phone but you didn't try to log in. You should:",
-                "choices": ["Approve it to clear the notification", "Deny it and report it to IT", "Ignore it", "Approve it and change your password later"],
-                "correct_index": 1,
-            },
-            {
-                "prompt": "The main benefit of MFA is that:",
-                "choices": ["Passwords become unnecessary", "A stolen password alone is not enough to log in", "You never have to log in again", "It blocks all phishing emails"],
-                "correct_index": 1,
-            },
-            {
-                "prompt": "Your phone keeps buzzing with login approval requests you didn't start. What is most likely happening?",
-                "choices": ["The app has a bug", "Someone has your password and is spamming prompts, hoping you'll approve one to make it stop", "IT is testing the system", "Your phone needs an update"],
-                "correct_index": 1,
-            },
-            {
-                "prompt": "During a flood of prompts, a WhatsApp message from 'IT support' says the alerts will stop once you accept one. What should you do?",
-                "choices": ["Accept one so the alerts stop", "Reply and ask for their staff ID", "Deny the prompts and report it to IT through a channel you already know", "Turn your phone off until tomorrow"],
-                "correct_index": 2,
-            },
-            {
-                "prompt": "Tapping 'Approve' on a login you didn't start is like:",
-                "choices": ["Silencing an alarm", "Handing the attacker the key to the door", "Logging yourself out", "Changing your password"],
-                "correct_index": 1,
-            },
-        ],
-    },
-]
 
 
 # Video lessons: one official CISA "Secure Our World" video per module, each with
@@ -190,7 +69,7 @@ _VIDEO_MODULES = [
         "slug": "video-recognize-report-phishing",
         "title": "Video: Recognize and report phishing",
         "summary": "CISA video on the three steps: recognize, resist, delete.",
-        "order": 3,
+        "order": 1,
         "video_url": "https://www.youtube.com/watch?v=JlQovysQBn0",
         "sources": [_CISA_PHISHING],
         "body": "\n".join([
@@ -221,7 +100,7 @@ _VIDEO_MODULES = [
         "slug": "video-avoid-phishing",
         "title": "Video: How to avoid phishing",
         "summary": "CISA video on spotting fake messages and checking them safely.",
-        "order": 4,
+        "order": 2,
         "video_url": "https://www.youtube.com/watch?v=sg0kQYvTlnc",
         "sources": [_CISA_PHISHING],
         "body": "\n".join([
@@ -252,7 +131,7 @@ _VIDEO_MODULES = [
         "slug": "video-strong-passwords",
         "title": "Video: How to make strong passwords",
         "summary": "CISA video: long, random and unique, plus a password manager.",
-        "order": 5,
+        "order": 3,
         "video_url": "https://www.youtube.com/watch?v=XXrbut5xRbE",
         "sources": [_CISA_PASSWORDS],
         "body": "\n".join([
@@ -284,7 +163,7 @@ _VIDEO_MODULES = [
         "slug": "video-turn-on-mfa",
         "title": "Video: How to turn on MFA",
         "summary": "CISA video: the three steps to switch on multifactor authentication.",
-        "order": 6,
+        "order": 4,
         "video_url": "https://www.youtube.com/watch?v=QWwaidg3AtY",
         "sources": [_CISA_MFA],
         "body": "\n".join([
@@ -315,7 +194,7 @@ _VIDEO_MODULES = [
         "slug": "video-mfa-safer-accounts",
         "title": "Video: Make your accounts safer with MFA",
         "summary": "CISA video on why MFA stops attackers who already have your password.",
-        "order": 7,
+        "order": 5,
         "video_url": "https://www.youtube.com/watch?v=XIlF2qkav5c",
         "sources": [_CISA_MFA],
         "body": "\n".join([
@@ -344,13 +223,17 @@ _VIDEO_MODULES = [
     },
 ]
 
-_SEED_MODULES += _VIDEO_MODULES
+_SEED_MODULES = _VIDEO_MODULES
+
+# Modules from earlier versions, removed from databases that still have them.
+_RETIRED_SLUGS = ("spotting-phishing", "password-mfa-safety")
 
 
 def _seed_training() -> None:
     from app.models import TrainingModule, TrainingQuestion
 
     with get_session() as session:
+        _retire_old_modules(session)
         _backfill_sources(session)
         # Insert any seed module that isn't there yet (by slug), so new lessons
         # also reach databases seeded by an older version.
@@ -370,6 +253,21 @@ def _seed_training() -> None:
                     choices_json=json.dumps(q["choices"]),
                     correct_index=q["correct_index"], order=i,
                 ))
+        session.commit()
+
+
+def _retire_old_modules(session: Session) -> None:
+    """Delete modules that are no longer part of the course, with their questions
+    and quiz attempts (attempts reference the module, so they can't outlive it)."""
+    from app.models import QuizResult, TrainingModule, TrainingQuestion
+
+    old = session.exec(select(TrainingModule).where(TrainingModule.slug.in_(_RETIRED_SLUGS))).all()
+    for module in old:
+        for model in (TrainingQuestion, QuizResult):
+            for row in session.exec(select(model).where(model.module_id == module.id)).all():
+                session.delete(row)
+        session.delete(module)
+    if old:
         session.commit()
 
 

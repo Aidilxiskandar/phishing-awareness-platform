@@ -122,11 +122,40 @@ def test_backfill_fills_empty_sources_only(session_factory):
         a, b = s.exec(select(TrainingModule).order_by(TrainingModule.order)).all()[:2]
         a.sources_json = "[]"
         b.sources_json = '[{"url": "https://example.com", "title": "custom"}]'
-        s.add(a); s.add(b); s.commit()
+        s.add(a)
+        s.add(b)
+        s.commit()
         _backfill_sources(s)
-        s.refresh(a); s.refresh(b)
-    assert len(a.sources) > 1
+        s.refresh(a)
+        s.refresh(b)
+    assert a.sources and a.sources[0]["publisher"] == "CISA"
     assert b.sources[0]["title"] == "custom"
+
+
+def test_retired_modules_are_removed(session_factory):
+    from app.database import _RETIRED_SLUGS, _seed_training
+    with session_factory() as s:
+        old = TrainingModule(slug=_RETIRED_SLUGS[0], title="Old")
+        s.add(old)
+        s.commit()
+        s.add(TrainingQuestion(module_id=old.id, prompt="?", choices_json="[]", correct_index=0))
+        s.add(QuizResult(module_id=old.id, score=1, total=1))
+        s.commit()
+        old_id = old.id
+    _seed_training()
+    with session_factory() as s:
+        slugs = set(s.exec(select(TrainingModule.slug)).all())
+        assert not slugs & set(_RETIRED_SLUGS)
+        assert len(slugs) == 5
+        assert not s.exec(select(QuizResult).where(QuizResult.module_id == old_id)).all()
+        assert not s.exec(select(TrainingQuestion).where(TrainingQuestion.module_id == old_id)).all()
+
+
+def test_landing_links_to_existing_training(client):
+    from pathlib import Path
+    html = Path("app/templates/landing.html").read_text()
+    slug = html.split('href="/training/')[1].split("?")[0]
+    assert client.get(f"/training/{slug}").status_code == 200
 
 
 def _module(session_factory, slug):
@@ -151,6 +180,8 @@ def test_each_cisa_video_is_a_module_with_a_quiz(session_factory):
 def test_video_lesson_embeds_youtube(client):
     r = client.get("/training/video-strong-passwords")
     assert "https://www.youtube.com/embed/XXrbut5xRbE" in r.text
+    # YouTube needs a Referer to play embeds (Error 153 under no-referrer).
+    assert 'referrerpolicy="strict-origin-when-cross-origin"' in r.text
     assert "Watch the video above" in r.text
 
 

@@ -35,3 +35,6 @@ app/static/videos/*.webm
 # coverage
 .coverage
 htmlcov/
+
+# Local Claude Code state / agent worktrees
+.claude/

@@ -14,7 +14,10 @@
       Your browser can’t play this video. <a href="{{ video.url }}">Download it</a> instead.
     </video>
     {% else %}
+    {# The site sends Referrer-Policy: no-referrer, but YouTube refuses to play embeds
+       without a Referer (Error 153). Send only our origin, never the path/?token=. #}
     <div class="vembed"><iframe src="{{ video.embed }}" title="{{ module.title }}"
+         referrerpolicy="strict-origin-when-cross-origin"
          allow="accelerometer; autoplay; encrypted-media; picture-in-picture"
          allowfullscreen loading="lazy"></iframe></div>
     {% endif %}
