@@ -56,13 +56,15 @@ def trend(series: list[dict], w: int = 560, h: int = 170) -> dict:
             "top": top, "base": round(pad_t + ph, 1), "gridlines": gridlines}
 
 
-def multi_trend(series: list[dict], keys: list[str], w: int = 560, h: int = 190) -> dict:
+def multi_trend(series: list[dict], keys: list[str], w: int = 1100, h: int = 260) -> dict:
     """Several % lines over the same campaigns, sharing one y-scale.
 
     series: ordered rows (one per campaign) carrying each of `keys` as a number.
     Returns per-key polyline points plus x positions for the axis labels.
     """
-    pad_l, pad_r, pad_t, pad_b = 12, 40, 16, 26
+    # Wide viewBox so the SVG renders near 1:1 in a full-width card (text in a
+    # narrow viewBox scales up with the chart); side padding fits edge labels.
+    pad_l, pad_r, pad_t, pad_b = 72, 72, 16, 30
     pw, ph = w - pad_l - pad_r, h - pad_t - pad_b
     n = len(series)
     peak = max((float(s[k]) for s in series for k in keys), default=0.0)
@@ -81,9 +83,9 @@ def multi_trend(series: list[dict], keys: list[str], w: int = 560, h: int = 190)
             "labels": labels, "base": round(pad_t + ph, 1), "x0": pad_l, "x1": w - pad_r}
 
 
-def bars(series: list[dict], key: str, w: int = 560, h: int = 120) -> dict:
+def bars(series: list[dict], key: str, w: int = 1100, h: int = 160) -> dict:
     """Vertical bar geometry for a count per campaign (e.g. scanner clicks)."""
-    pad_l, pad_r, pad_t, pad_b = 12, 40, 12, 22
+    pad_l, pad_r, pad_t, pad_b = 72, 72, 18, 30
     pw, ph = w - pad_l - pad_r, h - pad_t - pad_b
     n = len(series)
     top = max(1, max((int(s[key]) for s in series), default=0))

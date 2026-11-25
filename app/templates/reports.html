@@ -7,9 +7,9 @@
   .mt-legend .sw.bar{height:8px; width:8px; border-radius:2px;}
   .trend-svg .line.rep{stroke:var(--green);}
   .trend-svg .dot.rep{stroke:var(--green);}
-  .trend-svg .xlabel{fill:var(--faint); font-size:10px;}
+  .trend-svg .xlabel{fill:var(--muted); font-size:12px;}
   .trend-svg .bar{fill:var(--n2);}
-  .trend-svg .bval{fill:var(--muted); font-size:10px; font-family:var(--mono);}
+  .trend-svg .bval{fill:var(--muted); font-size:12px; font-family:var(--mono);}
   .sub-head{font-size:13px; color:var(--muted); margin:24px 0 8px;}
   .rate{font-family:var(--mono); font-variant-numeric:tabular-nums;}
   .ratebar{display:inline-block; width:64px; height:6px; border-radius:3px; background:var(--surface-2);
@@ -51,7 +51,7 @@
       <circle class="dot {{ 'dot-last' if loop.last }}" cx="{{ p.x }}" cy="{{ p.y }}" r="3.5"><title>{{ p.name }}: {{ '%.0f' % p.val }}% clicked</title></circle>
     {% endfor %}
     {% for l in tc.labels %}
-      <text class="xlabel" x="{{ l.x }}" y="{{ tc.h - 6 }}" text-anchor="middle">{{ l.name[:16] }}</text>
+      <text class="xlabel" x="{{ l.x }}" y="{{ tc.h - 6 }}" text-anchor="middle">{{ l.name[:30] }}</text>
     {% endfor %}
   </svg>
   {% set sc = scanner_chart %}
@@ -61,7 +61,7 @@
     {% for b in sc.bars %}
       <rect class="bar" x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" rx="2"><title>{{ b.name }}: {{ b.val }} scanner clicks</title></rect>
       <text class="bval" x="{{ b.cx }}" y="{{ b.y - 3 }}" text-anchor="middle">{{ b.val }}</text>
-      <text class="xlabel" x="{{ b.cx }}" y="{{ sc.h - 6 }}" text-anchor="middle">{{ b.name[:16] }}</text>
+      <text class="xlabel" x="{{ b.cx }}" y="{{ sc.h - 6 }}" text-anchor="middle">{{ b.name[:30] }}</text>
     {% endfor %}
   </svg>
 
