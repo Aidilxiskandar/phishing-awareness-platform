@@ -98,8 +98,10 @@ def track_click(request: Request, token: str):
                 seconds_since_send=secs,
                 headers={k.lower(): v for k, v in request.headers.items()},
                 js_confirmed=False,
+                ip=client_ip(request),
             ),
             time_window_seconds=settings.scanner_time_window_seconds,
+            scanner_networks=settings.scanner_network_list,
         )
         _log_event(session, target, campaign, EventType.CLICK, request,
                    Verdict(result.verdict), result.reason, secs)
@@ -117,8 +119,10 @@ def track_confirm(request: Request, token: str):
         result = classify(
             ClickSignals(user_agent=request.headers.get("user-agent", ""),
                          http_method=request.method, seconds_since_send=secs,
-                         js_confirmed=True),
+                         headers={k.lower(): v for k, v in request.headers.items()},
+                         js_confirmed=True, ip=client_ip(request)),
             time_window_seconds=settings.scanner_time_window_seconds,
+            scanner_networks=settings.scanner_network_list,
         )
         _log_event(session, target, campaign, EventType.CONFIRM, request,
                    Verdict(result.verdict), result.reason, secs)

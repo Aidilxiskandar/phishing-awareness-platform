@@ -3,7 +3,11 @@
 These cover the exact dispute from the internship: a scanner click must not be
 counted as a human click, and a real browser (JS confirm) must be.
 """
-from app.detection import ClickSignals, classify
+
+from app.detection import (
+    ClickSignals,
+    classify,
+)
 
 CHROME = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
           "(KHTML, like Gecko) Chrome/125.0 Safari/537.36")

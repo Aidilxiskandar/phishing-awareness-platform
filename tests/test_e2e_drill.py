@@ -140,7 +140,7 @@ def test_full_drill_dry_run(capsys, session_factory):
             clicks = s.exec(select(Event).where(Event.type == EventType.CLICK)
                             .order_by(Event.id)).all()
         assert [c.verdict for c in clicks] == [Verdict.HUMAN, Verdict.SCANNER]
-        assert "'curl'" in clicks[1].reason and clicks[1].user_agent == CURL
+        assert "curl" in clicks[1].reason and clicks[1].user_agent == CURL
 
         # --- 8. Report ------------------------------------------------------
         r = browser.get(f"/t/report/{token}", headers={"User-Agent": CHROME})

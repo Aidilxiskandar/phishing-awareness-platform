@@ -1,8 +1,10 @@
 """Property-based tests for the click classifier (app/detection.py).
 
 Invariants:
-  * any click carrying a known scanner signal is NEVER "human" (absent JS proof);
-  * a JS-confirmed click is ALWAYS "human";
+  * any click carrying a known scanner signal is NEVER "human";
+  * self-declared automation outranks the JS beacon (sandboxes run JS);
+  * a JS-confirmed click from a browser with no automation signal is ALWAYS "human";
+  * proxy headers (Via) never turn a real browser click into "scanner";
   * classify() is total (never raises) and deterministic for arbitrary input;
   * the output is always well-formed (known verdict, non-empty reason, 0..1 conf).
 """
@@ -12,11 +14,13 @@ from hypothesis import HealthCheck, example, given, settings
 from hypothesis import strategies as st
 
 from app.detection import (
+    _OBSOLETE_UA,
     PREFETCH_HEADER_HINTS,
-    SCANNER_UA_PATTERNS,
     ClickSignals,
     classify,
+    match_scanner_signature,
 )
+from tests.fixtures.user_agents import BROWSER_UAS, SCANNER_UAS
 
 # The autouse DB fixture is function-scoped; it is irrelevant to this pure code.
 settings.register_profile(
@@ -40,11 +44,15 @@ def _random_case(draw, s: str) -> str:
     return "".join(c.upper() if f else c for c, f in zip(s, flips, strict=True))
 
 
+def _is_scannerish(ua: str) -> bool:
+    return bool(match_scanner_signature(ua) or _OBSOLETE_UA.search(ua))
+
+
 @st.composite
 def scanner_uas(draw):
-    """An arbitrary UA string with a known scanner pattern embedded, any case."""
-    pat = draw(st.sampled_from(SCANNER_UA_PATTERNS))
-    return draw(any_text) + _random_case(draw, pat) + draw(any_text)
+    """A real-world scanner UA (any case), with arbitrary text appended."""
+    ua = draw(st.sampled_from([u for _, u, _ in SCANNER_UAS]))
+    return _random_case(draw, ua) + draw(st.sampled_from(["", " ", " extra/1.0"]))
 
 
 @st.composite
@@ -117,14 +125,36 @@ def test_inside_scan_window_without_js_is_never_human(sig):
 
 # --- JS confirm is decisive ------------------------------------------------
 
+browser_uas = st.sampled_from([u for _, u in BROWSER_UAS])
+
+
 @props
-@given(signals(js_confirmed=True), windows)
-@example(ClickSignals(user_agent="curl/8", http_method="HEAD",
-                      headers={"purpose": "prefetch"}, js_confirmed=True), 15)
-def test_js_confirmed_is_always_human(sig, window):
+@given(signals(user_agent=browser_uas, headers=None, js_confirmed=True), windows)
+def test_js_confirmed_browser_is_always_human(sig, window):
     result = classify(sig, window)
     assert result.verdict == "human"
     assert result.confidence >= 0.9
+
+
+@props
+@given(signals(user_agent=scanner_uas(), js_confirmed=True), windows)
+@example(ClickSignals(user_agent="curl/8", http_method="HEAD",
+                      headers={"purpose": "prefetch"}, js_confirmed=True), 15)
+def test_self_declared_automation_beats_js_beacon(sig, window):
+    # Detonation sandboxes run real headless browsers that DO execute JS.
+    assert classify(sig, window).verdict == "scanner"
+
+
+@props
+@given(browser_uas, st.sampled_from([
+    "1.1 zscaler", "1.1 ZS-proxy (Zscaler)", "1.1 bluecoat (Symantec)", "1.1 forcepoint",
+    "HTTP/1.1 paloalto-proxy", "1.1 FortiGate", "1.1 cisco-umbrella", "1.1 sophos",
+]), st.booleans())
+def test_corporate_proxy_via_header_never_makes_a_human_a_scanner(ua, via, js):
+    # Staff browse through secure web gateways that add a Via header.
+    sig = ClickSignals(user_agent=ua, seconds_since_send=3600.0,
+                       headers={"via": via}, js_confirmed=js)
+    assert classify(sig, 15).verdict == "human"
 
 
 # --- totality / determinism / well-formedness ------------------------------
@@ -166,22 +196,19 @@ def test_arbitrary_headers_only_promote_to_scanner(headers, window):
 
 
 @props
-@given(st.text(max_size=80).filter(lambda s: not any(
-           p in s.lower() for p in SCANNER_UA_PATTERNS)),
-       st.floats(min_value=16.0, max_value=1e9))
+@given(st.text(max_size=80), st.floats(min_value=16.0, max_value=1e9))
 def test_browser_ua_outside_window_is_human(suffix, secs):
     ua = "Mozilla/5.0 " + suffix
-    if any(p in ua.lower() for p in SCANNER_UA_PATTERNS):
-        return  # the prefix + suffix formed a scanner pattern across the boundary
+    if _is_scannerish(ua):
+        return  # the random suffix happens to name a scanner / obsolete disguise
     result = classify(ClickSignals(user_agent=ua, seconds_since_send=secs), 15)
     assert result.verdict == "human"
 
 
 @props
-@given(st.text(min_size=1, max_size=60).filter(lambda s: s.strip() and not any(
-    h in s.lower() for h in ("mozilla", "chrome", "safari", "firefox", "edg", "opera",
-                             *SCANNER_UA_PATTERNS))))
+@given(st.text(min_size=1, max_size=60).filter(lambda s: s.strip() and not _is_scannerish(s)
+    and not any(h in s.lower() for h in ("mozilla", "chrome", "safari", "firefox", "edg", "opera"))))
 def test_non_browser_non_scanner_ua_is_unknown(ua):
     result = classify(ClickSignals(user_agent=ua, seconds_since_send=None), 15)
     assert result.verdict == "unknown"
-    assert result.reason == "no decisive signal"
+    assert result.reason.startswith("no decisive signal")

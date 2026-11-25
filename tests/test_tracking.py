@@ -68,3 +68,21 @@ def test_forged_xff_ignored_without_trusted_proxy(client, anon, session_factory)
     clicks = _events(session_factory, EventType.CLICK)
     # No trusted proxy configured -> the forged XFF must not be recorded as the IP.
     assert clicks[0].ip != "1.2.3.4"
+
+
+def test_click_from_declared_scanner_network_is_scanner(client, anon, session_factory, monkeypatch):
+    from app.config import settings
+    from app.routers import tracking
+    _, token = _make_target(client, session_factory)
+    monkeypatch.setattr(settings, "scanner_networks", "203.0.113.0/24=Test gateway")
+    monkeypatch.setattr(tracking, "client_ip", lambda request: "203.0.113.9")
+    anon.get(f"/t/click/{token}", headers={"User-Agent": CHROME})
+    click = _events(session_factory, EventType.CLICK)[-1]
+    assert click.verdict == Verdict.SCANNER
+    assert "Test gateway" in click.reason and click.ip == "203.0.113.9"
+
+
+def test_invalid_scanner_networks_blocks_startup(monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "scanner_networks", "not-a-cidr")
+    assert any("SCANNER_NETWORKS" in p for p in settings.validate_for_runtime())

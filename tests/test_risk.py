@@ -1,6 +1,6 @@
 """Risk scoring (now SQL-aggregated): weights, band boundaries, aggregation."""
-from app.services.risk import risk_scores as _risk_scores
 from app.models import Campaign, Event, EventType, Target, User, Verdict
+from app.services.risk import risk_scores as _risk_scores
 
 H = (EventType.CLICK, Verdict.HUMAN)
 S = (EventType.CLICK, Verdict.SCANNER)

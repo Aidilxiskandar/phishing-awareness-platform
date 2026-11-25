@@ -36,6 +36,12 @@ class Settings(BaseSettings):
 
     # --- Detection ---
     scanner_time_window_seconds: int = 15
+    # Optional: IP ranges that only ever carry mail-security scanner traffic, as
+    # "cidr[=label]" entries separated by commas, e.g.
+    #   "203.0.113.0/24=Mimecast EU, 198.51.100.7=Proofpoint"
+    # Clicks from them are labelled scanner. Never list a range staff browse
+    # through (e.g. a corporate egress proxy). Empty = none.
+    scanner_networks: str = ""
 
     # --- Training ---
     # Minimum quiz score (percent) that counts as passing a module.
@@ -48,7 +54,7 @@ class Settings(BaseSettings):
     # --- Infrastructure ---
     # Override the SQLite location / use another DB URL. Empty = default file in repo.
     database_url: str = ""
-    # Comma-separated proxy IPs whose X-Forwarded-For header we trust. Empty = none.
+    # Comma-separated proxy IPs/CIDRs whose X-Forwarded-For header we trust. Empty = none.
     trusted_proxies: str = ""
 
     @property
@@ -75,12 +81,22 @@ class Settings(BaseSettings):
         return {p.strip() for p in self.trusted_proxies.split(",") if p.strip()}
 
     @property
+    def scanner_network_list(self):
+        """Parsed SCANNER_NETWORKS (validated at startup by validate_for_runtime)."""
+        from app.detection import parse_scanner_networks
+        return parse_scanner_networks(self.scanner_networks)
+
+    @property
     def allowed_domains(self) -> set[str]:
         return {d.strip().lower() for d in self.allowed_recipient_domains.split(",") if d.strip()}
 
     def validate_for_runtime(self) -> list[str]:
         """Fatal misconfigurations for the current environment (checked at startup)."""
         problems: list[str] = []
+        try:
+            self.scanner_network_list  # noqa: B018 - parse to validate
+        except ValueError as exc:
+            problems.append(f"SCANNER_NETWORKS is invalid: {exc}")
         if self.is_prod:
             if not self.secret_key:
                 problems.append("SECRET_KEY must be set in production")
