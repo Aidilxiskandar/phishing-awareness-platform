@@ -2,7 +2,7 @@
 {% block title %}{{ module.title }}{% endblock %}
 {% block content %}
 
-<p style="margin-top:0"><a class="back" href="/training">← All modules</a></p>
+{% if not staff %}<p style="margin-top:0"><a class="back" href="/training">← All modules</a></p>{% endif %}
 
 {% if video %}
 <div class="card" style="padding:0;overflow:hidden">
@@ -68,13 +68,12 @@
     <p class="metric" style="color:var(--red);display:inline-block">{{ result.score }}/{{ result.total }}<small>Not passed yet</small></p>
     <p style="color:var(--muted)">You need {{ result.pass_percent }}% to pass. {% if video %}Rewatch the video and {% endif %}re-read the points above, then try again.</p>
   {% endif %}
-  <a class="btn" href="/training/{{ module.slug }}{{ ('?token=' ~ token) if token }}">Retake quiz</a>
+  <a class="btn" href="{{ train_base }}/{{ module.slug }}">Retake quiz</a>
 </div>
 {% else %}
 <div class="card">
   <h2>Quick quiz</h2>
-  <form method="post" action="/training/{{ module.slug }}/quiz">
-    <input type="hidden" name="token" value="{{ token }}">
+  <form method="post" action="{{ train_base }}/{{ module.slug }}/quiz">
     {% for q in questions %}
     <div style="margin-bottom:20px">
       <p style="font-weight:500;margin:0 0 8px">{{ loop.index }}. {{ q.prompt }}</p>

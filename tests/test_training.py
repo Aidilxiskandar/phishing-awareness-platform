@@ -54,8 +54,8 @@ def test_quiz_links_attempt_to_person_via_token(client, session_factory):
         token = s.exec(select(Target.token)).first()
 
     module, qs = _module_and_questions(session_factory)
-    data = {"token": token, **{f"q{q.id}": str(q.correct_index) for q in qs}}
-    client.post(f"/training/{module.slug}/quiz", data=data)
+    data = {f"q{q.id}": str(q.correct_index) for q in qs}
+    client.post(f"/t/training/{token}/{module.slug}/quiz", data=data)
     with session_factory() as s:
         result = s.exec(select(QuizResult)).one()
     assert result.user_id == uid and result.score == len(qs)
@@ -151,11 +151,58 @@ def test_retired_modules_are_removed(session_factory):
         assert not s.exec(select(TrainingQuestion).where(TrainingQuestion.module_id == old_id)).all()
 
 
-def test_landing_links_to_existing_training(client):
-    from pathlib import Path
-    html = Path("app/templates/landing.html").read_text()
-    slug = html.split('href="/training/')[1].split("?")[0]
-    assert client.get(f"/training/{slug}").status_code == 200
+def _drill_token(client, session_factory) -> tuple[int, str]:
+    from app.models import Campaign, User
+    client.post("/users", data={"email": "staff@example.com", "name": "Staff", "consented": "on"})
+    client.post("/campaigns", data={"name": "C", "subject": "S",
+                                    "from_name": "IT", "from_email": "it@example.com"})
+    with session_factory() as s:
+        uid = s.exec(select(User.id)).first()
+        cid = s.exec(select(Campaign.id)).first()
+    client.post(f"/campaigns/{cid}/targets", data={"user_ids": uid})
+    with session_factory() as s:
+        return uid, s.exec(select(Target.token)).first()
+
+
+def test_landing_training_link_works_for_staff_without_login(client, anon, session_factory):
+    """Regression: the landing page's training link used to point at the
+    admin-only /training path, so staff were bounced to the admin login."""
+    _, token = _drill_token(client, session_factory)
+    landing = anon.get(f"/t/click/{token}")
+    assert landing.status_code == 200
+    href = landing.text.split('class="cta" href="')[1].split('"')[0]
+    assert href.startswith(f"/t/training/{token}/")
+    r = anon.get(href, follow_redirects=False)
+    assert r.status_code == 200
+    assert "Quick quiz" in r.text
+    assert 'href="/users"' not in r.text and "Log out" not in r.text  # no admin nav
+
+
+def test_staff_quiz_is_recorded_against_the_person(client, anon, session_factory):
+    uid, token = _drill_token(client, session_factory)
+    module, qs = _module_and_questions(session_factory)
+    r = anon.post(f"/t/training/{token}/{module.slug}/quiz",
+                  data={f"q{q.id}": str(q.correct_index) for q in qs})
+    assert r.status_code == 200 and "Passed" in r.text
+    assert f'action="/t/training/{token}/{module.slug}/quiz"' not in r.text  # result view
+    with session_factory() as s:
+        result = s.exec(select(QuizResult)).one()
+    assert result.user_id == uid and result.token == token and result.score == len(qs)
+
+
+def test_staff_training_rejects_unknown_token(anon, session_factory):
+    module, qs = _module_and_questions(session_factory)
+    assert anon.get(f"/t/training/nope/{module.slug}").status_code == 404
+    r = anon.post(f"/t/training/nope/{module.slug}/quiz", data={})
+    assert r.status_code == 404
+    with session_factory() as s:
+        assert not s.exec(select(QuizResult)).all()
+
+
+def test_admin_training_preview_still_requires_login(anon, session_factory):
+    module, _ = _module_and_questions(session_factory)
+    r = anon.get(f"/training/{module.slug}", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].startswith("/login")
 
 
 def _module(session_factory, slug):
@@ -211,14 +258,14 @@ def test_staff_progress_shows_completed_person(client, session_factory):
 
     for slug in slugs[:-1]:
         _, qs = _module(session_factory, slug)
-        client.post(f"/training/{slug}/quiz",
-                    data={"token": token, **{f"q{q.id}": str(q.correct_index) for q in qs}})
+        client.post(f"/t/training/{token}/{slug}/quiz",
+                    data={f"q{q.id}": str(q.correct_index) for q in qs})
     page = client.get("/training").text
     assert "Done Person" in page and "In progress" in page
 
     _, qs = _module(session_factory, slugs[-1])
-    client.post(f"/training/{slugs[-1]}/quiz",
-                data={"token": token, **{f"q{q.id}": str(q.correct_index) for q in qs}})
+    client.post(f"/t/training/{token}/{slugs[-1]}/quiz",
+                data={f"q{q.id}": str(q.correct_index) for q in qs})
     assert "Training complete" in client.get("/training").text
 
 

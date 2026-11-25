@@ -823,8 +823,18 @@ def training_list(request: Request):
     })
 
 
-@app.get("/training/{slug}", response_class=HTMLResponse)
-def training_detail(request: Request, slug: str, token: str = ""):
+def _training_page(request: Request, slug: str, *, target: Target | None,
+                   form=None):
+    """Render a training module, and grade + record its quiz when `form` is given.
+
+    Two audiences share this page:
+      * admins preview modules at /training/{slug} (inside the admin app);
+      * staff arrive from a drill's landing page at /t/training/{token}/{slug}.
+        That path is public (recipients have no admin login), so it only works
+        with a real drill token and never shows admin navigation.
+    """
+    staff = target is not None
+    token = target.token if staff else ""
     with get_session() as session:
         module = session.exec(select(TrainingModule).where(TrainingModule.slug == slug)).first()
         if not module:
@@ -833,50 +843,59 @@ def training_detail(request: Request, slug: str, token: str = ""):
             select(TrainingQuestion).where(TrainingQuestion.module_id == module.id)
             .order_by(TrainingQuestion.order)
         ).all()
+        result = None
+        if form is not None:
+            score = 0
+            for q in questions:
+                answer = form.get(f"q{q.id}")
+                if isinstance(answer, str) and answer.isdigit() and int(answer) == q.correct_index:
+                    score += 1
+            session.add(QuizResult(module_id=module.id, token=token,
+                                   user_id=target.user_id if staff else None,
+                                   score=score, total=len(questions)))
+            session.commit()
+            result = {"score": score, "total": len(questions),
+                      "passed": _passed(score, len(questions)),
+                      "pass_percent": settings.training_pass_percent}
         bullets = [b for b in module.body.split("\n") if b.strip()]
         video = _video_info(module)
+    base = f"/t/training/{token}" if staff else "/training"
     return templates.TemplateResponse(request, "training_detail.html", {
         "tab": "training", "module": module, "questions": questions,
-        "bullets": bullets, "video": video, "token": token, "result": None,
-        "dry_run": settings.dry_run,
+        "bullets": bullets, "video": video, "result": result,
+        "staff": staff, "train_base": base, "dry_run": settings.dry_run,
     })
+
+
+def _find_target(token: str) -> Target | None:
+    with get_session() as session:
+        return session.exec(select(Target).where(Target.token == token)).first()
+
+
+@app.get("/training/{slug}", response_class=HTMLResponse)
+def training_detail(request: Request, slug: str):
+    return _training_page(request, slug, target=None)
 
 
 @app.post("/training/{slug}/quiz", response_class=HTMLResponse)
 async def submit_quiz(request: Request, slug: str):
-    form = await request.form()
-    token = form.get("token", "")
-    with get_session() as session:
-        module = session.exec(select(TrainingModule).where(TrainingModule.slug == slug)).first()
-        if not module:
-            return HTMLResponse("Module not found", status_code=404)
-        questions = session.exec(
-            select(TrainingQuestion).where(TrainingQuestion.module_id == module.id)
-            .order_by(TrainingQuestion.order)
-        ).all()
-        score = 0
-        for q in questions:
-            answer = form.get(f"q{q.id}")
-            if answer is not None and answer.isdigit() and int(answer) == q.correct_index:
-                score += 1
-        user_id = None
-        if token:
-            target = session.exec(select(Target).where(Target.token == token)).first()
-            if target:
-                user_id = target.user_id
-        session.add(QuizResult(module_id=module.id, token=token, user_id=user_id,
-                               score=score, total=len(questions)))
-        session.commit()
-        bullets = [b for b in module.body.split("\n") if b.strip()]
-        video = _video_info(module)
-        result = {"score": score, "total": len(questions),
-                  "passed": _passed(score, len(questions)),
-                  "pass_percent": settings.training_pass_percent}
-    return templates.TemplateResponse(request, "training_detail.html", {
-        "tab": "training", "module": module, "questions": questions,
-        "bullets": bullets, "video": video, "token": token, "result": result,
-        "dry_run": settings.dry_run,
-    })
+    return _training_page(request, slug, target=None, form=await request.form())
+
+
+@app.get("/t/training/{token}/{slug}", response_class=HTMLResponse)
+def staff_training(request: Request, token: str, slug: str):
+    target = _find_target(token)
+    if not target:
+        return HTMLResponse("This training link is not valid.", status_code=404)
+    return _training_page(request, slug, target=target)
+
+
+@app.post("/t/training/{token}/{slug}/quiz", response_class=HTMLResponse)
+async def staff_submit_quiz(request: Request, token: str, slug: str):
+    target = _find_target(token)
+    if not target:
+        return HTMLResponse("This training link is not valid.", status_code=404)
+    return _training_page(request, slug, target=target, form=await request.form())
 
 
 # --- Reports ----------------------------------------------------------------
