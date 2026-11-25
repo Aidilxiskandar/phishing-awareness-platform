@@ -152,24 +152,22 @@ templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "tem
 async def _guard(request: Request, call_next):
     request_id = secrets.token_hex(8)
     request.state.request_id = request_id
+    nonce = security.new_csp_nonce()
+    request.state.csp_nonce = nonce
     path = request.url.path
-    if not security.is_public_path(path):
-        if not security.is_authenticated(request):
-            if request.method == "GET":
-                nxt = security.safe_next(path)
-                return RedirectResponse(f"/login?next={nxt}", status_code=303)
-            return Response("Authentication required", status_code=401)
-        if request.method in security.STATE_CHANGING and not security.csrf_ok(request):
-            logger.warning("csrf_block rid=%s path=%s", request_id, path)
-            return Response("CSRF check failed", status_code=403)
+    if not security.is_public_path(path) and not security.is_authenticated(request):
+        if request.method == "GET":
+            return RedirectResponse(security.login_redirect_url(path), status_code=303)
+        return Response("Authentication required", status_code=401)
+    # Every state-changing request outside the recipient tracking endpoints
+    # (including the login form itself) needs a session-bound CSRF token.
+    if security.csrf_required(request) and not await security.csrf_ok(request):
+        logger.warning("csrf_block rid=%s path=%s", request_id, path)
+        return Response("CSRF check failed. Reload the page and try again.", status_code=403)
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
-    response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    response.headers.setdefault("Referrer-Policy", "no-referrer")
-    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
-    if settings.is_prod:
-        response.headers.setdefault(
-            "Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+    for name, value in security.security_headers(path, nonce).items():
+        response.headers.setdefault(name, value)
     return response
 
 
@@ -178,6 +176,8 @@ async def _guard(request: Request, call_next):
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.effective_secret_key,
+    session_cookie=security.SESSION_COOKIE,
+    max_age=security.SESSION_MAX_AGE,
     same_site="lax",
     https_only=settings.is_prod,
 )
@@ -196,21 +196,34 @@ def login_form(request: Request, next: str = "/"):
 @app.post("/login", response_class=HTMLResponse)
 def login(request: Request, username: str = Form(...), password: str = Form(...),
           next: str = Form("/")):
-    if not security.verify_credentials(username, password):
-        logger.warning("login_failed user=%s ip=%s", username, _client_ip(request))
+    ip = _client_ip(request)
+
+    def _fail(message: str, status: int, headers: dict | None = None):
         return templates.TemplateResponse(request, "login.html", {
-            "next": security.safe_next(next),
-            "error": "Invalid username or password.", "tab": None,
+            "next": security.safe_next(next), "error": message, "tab": None,
             "dry_run": settings.dry_run,
-        }, status_code=401)
-    request.session["admin"] = settings.admin_username
+        }, status_code=status, headers=headers)
+
+    wait = security.login_throttle.retry_after(ip, username)
+    if wait:
+        logger.warning("login_locked user=%s ip=%s retry_after=%s", username[:64], ip, wait)
+        return _fail(f"Too many failed attempts. Try again in {max(1, wait // 60)} minute(s).",
+                     429, {"Retry-After": str(wait)})
+    if not security.verify_credentials(username, password):
+        security.login_throttle.record_failure(ip, username)
+        logger.warning("login_failed user=%s ip=%s", username[:64], ip)
+        return _fail("Invalid username or password.", 401)
+    security.login_throttle.reset(ip, username)
+    security.start_session(request, settings.admin_username)
     _record_audit(request, "login", f"admin '{username}' signed in")
     return RedirectResponse(security.safe_next(next), status_code=303)
 
 
-@app.get("/logout")
+@app.post("/logout")
 def logout(request: Request):
-    request.session.clear()
+    if security.is_authenticated(request):
+        _record_audit(request, "logout", "admin signed out")
+    security.end_session(request)
     return RedirectResponse("/login", status_code=303)
 
 
@@ -242,6 +255,7 @@ def humandur(seconds: float | None) -> str:
 
 
 templates.env.filters["humandur"] = humandur
+security.install_template_globals(templates.env)
 
 # A transparent 1x1 PNG, returned by the open-tracking pixel.
 _PIXEL = base64.b64decode(
@@ -252,17 +266,10 @@ _PIXEL = base64.b64decode(
 # --- helpers ----------------------------------------------------------------
 
 def _client_ip(request: Request) -> str:
-    """Resolve the client IP, trusting X-Forwarded-For only from configured proxies.
-
-    Otherwise anyone could forge the IP written into the evidence log by sending
-    their own X-Forwarded-For header.
-    """
-    peer = request.client.host if request.client else ""
-    if peer in settings.trusted_proxy_set:
-        fwd = request.headers.get("x-forwarded-for")
-        if fwd:
-            return fwd.split(",")[0].strip()
-    return peer
+    """Client IP for the evidence log (see security.client_ip: X-Forwarded-For is
+    only honoured from TRUSTED_PROXIES, walked right-to-left, so a client can't
+    forge the address written into the evidence)."""
+    return security.client_ip(request)
 
 
 def _seconds_since_send(campaign: Campaign) -> float | None:

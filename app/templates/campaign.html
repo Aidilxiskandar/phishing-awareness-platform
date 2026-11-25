@@ -35,6 +35,7 @@
   {% if groups %}
   <form method="post" action="/campaigns/{{ campaign.id }}/targets_group"
         style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <span style="color:var(--muted);font-size:13px">Add everyone in a group:</span>
     <select name="group_id" style="width:auto">
       {% for g in groups %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
@@ -45,6 +46,7 @@
 
   {% if available_users %}
   <form method="post" action="/campaigns/{{ campaign.id }}/targets">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <label>…or pick individuals (consenting users only can be sent to)</label>
     <div style="max-height:360px;overflow:auto;border:1px solid var(--line);border-radius:8px;margin:8px 0 12px">
     <table>
@@ -80,6 +82,7 @@
     {% endfor %}
   </table>
   <form method="post" action="/campaigns/{{ campaign.id }}/send" style="margin-top:14px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <button type="submit">
       {% if dry_run %}Send drill (dry run, printed to console){% else %}Send drill emails{% endif %}
     </button>

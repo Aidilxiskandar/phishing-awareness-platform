@@ -12,6 +12,7 @@
     Generate a batch of realistic random staff (names, emails, departments) for
     testing. A random slice is auto-added to the example groups below.</p>
   <form method="post" action="/users/seed" style="display:flex;gap:10px;align-items:flex-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <div style="max-width:140px"><label>How many</label>
       <input type="text" name="count" value="300"></div>
     <button type="submit">Generate staff</button>
@@ -21,6 +22,7 @@
 <div class="card">
   <h2>Groups</h2>
   <form method="post" action="/groups">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <div class="row">
       <div><label>Group name</label>
         <input type="text" name="name" placeholder="e.g. New staff, Failed phishing - Nov" required></div>
@@ -50,6 +52,7 @@
 <div class="card">
   <h2>Add a single user</h2>
   <form method="post" action="/users">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <div class="row">
       <div><label>Full name</label><input type="text" name="name" placeholder="Alice Tan"></div>
       <div><label>Email</label><input type="email" name="email" placeholder="alice@example.com" required></div>
@@ -80,6 +83,7 @@
 
   {% if users %}
   <form method="post" action="/users/assign">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     {% if groups %}
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
       <span style="color:var(--muted);font-size:13px">Assign checked users to:</span>
@@ -106,7 +110,7 @@
           {% else %}<span style="color:var(--muted)">—</span>{% endfor %}
         </td>
         <td><button type="submit" class="ghost btn-sm danger" formaction="/users/{{ u.id }}/erase"
-              onclick="return confirm('Permanently erase this person\'s personal data? This cannot be undone.')"
+              data-confirm="Permanently erase this person's personal data? This cannot be undone."
               title="Right to erasure: anonymise this person">Erase</button></td>
       </tr>
       {% endfor %}

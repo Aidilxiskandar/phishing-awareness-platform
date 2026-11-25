@@ -4,6 +4,7 @@
 <div class="card">
   <h2>New campaign</h2>
   <form method="post" action="/campaigns">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <div class="row">
       <div><label>Campaign name</label>
         <input type="text" name="name" placeholder="Q1 new-joiner drill" required></div>
@@ -42,7 +43,7 @@
   </form>
 </div>
 
-<script>
+<script nonce="{{ csp_nonce(request) }}">
   (function () {
     var sel = document.getElementById("tmpl-select");
     if (!sel) return;

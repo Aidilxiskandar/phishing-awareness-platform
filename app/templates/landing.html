@@ -45,7 +45,7 @@
   <!-- Decisive human signal: a scanner/proxy fetches the page but does not run
        this JS. If this beacon fires, we know a real, interactive browser is here
        and we upgrade the click to HUMAN. -->
-  <script>
+  <script nonce="{{ csp_nonce(request) }}">
     (function () {
       try {
         fetch("/t/confirm/{{ token }}", { method: "POST", keepalive: true });

@@ -35,6 +35,7 @@
 
   .app{display:grid; grid-template-columns:240px 1fr; min-height:100vh;}
   .app.staff{grid-template-columns:1fr;}
+  .linklike{background:none; border:0; padding:0; height:auto; color:inherit; font:inherit; text-decoration:underline; cursor:pointer;}
 
   /* --- Sidebar --- */
   .sidebar{background:var(--bg2); border-right:1px solid var(--line); padding:20px 16px;
@@ -302,7 +303,10 @@
     <div class="side-foot">
       <b>Authorised use only.</b> Run drills on consenting test accounts or with
       written permission.
-      <div style="margin-top:12px"><a href="/logout">Log out</a></div>
+      <form method="post" action="/logout" style="margin-top:12px">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+        <button type="submit" class="linklike">Log out</button>
+      </form>
     </div>
   </aside>
   {% endif %}
@@ -323,5 +327,13 @@
     <footer class="app-foot">PhishGuard · self-hosted phishing simulation and security awareness · authorised use only</footer>
   </div>
 </div>
+<script nonce="{{ csp_nonce(request) }}">
+  // Ask before destructive actions (buttons marked data-confirm). Inline
+  // onclick handlers are blocked by the nonce-based Content-Security-Policy.
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-confirm]");
+    if (b && !window.confirm(b.getAttribute("data-confirm"))) e.preventDefault();
+  });
+</script>
 </body>
 </html>

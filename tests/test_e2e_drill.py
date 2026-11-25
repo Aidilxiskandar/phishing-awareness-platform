@@ -27,7 +27,7 @@ from app.models import (
     User,
     Verdict,
 )
-from tests.conftest import ADMIN
+from tests.conftest import login
 
 CHROME = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
           "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
@@ -50,8 +50,10 @@ def test_full_drill_dry_run(capsys, session_factory):
         r = web.get("/", follow_redirects=False)
         assert r.status_code == 303 and r.headers["location"].startswith("/login")
         r = web.post("/login", data={"username": "admin", "password": "wrong", "next": "/"})
+        assert r.status_code == 403  # no CSRF token: the form was never loaded
+        r = login(web, password="wrong")
         assert r.status_code == 401
-        r = web.post("/login", data={**ADMIN, "next": "/phishing"}, follow_redirects=False)
+        r = login(web, next="/phishing")
         assert r.status_code == 303 and r.headers["location"] == "/phishing"
 
         # --- 2. Users + group --------------------------------------------
@@ -145,7 +147,7 @@ def test_full_drill_dry_run(capsys, session_factory):
         assert r.status_code == 200
 
     with TestClient(app) as web:
-        web.post("/login", data={**ADMIN, "next": "/"})
+        assert login(web).status_code == 303
 
         # --- 9. Reports page, phishing list, dashboard, CSV -----------------
         rep = web.get("/reports").text

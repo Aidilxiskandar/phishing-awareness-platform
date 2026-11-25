@@ -30,7 +30,8 @@ def test_login_then_access_dashboard(client):
 
 
 def test_logout_clears_session(client):
-    client.get("/logout", follow_redirects=False)
+    r = client.post("/logout", follow_redirects=False)
+    assert r.status_code == 303
     assert client.get("/", follow_redirects=False).status_code == 303
 
 
