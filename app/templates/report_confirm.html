@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <title>Report this email</title>
 <style>
   :root{ color-scheme:dark; }
@@ -26,7 +27,11 @@
   <main class="box">
     <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" stroke="#f5a524"><path d="M12 2l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V5l7-3z"/><path d="M12 8v4M12 16h.01"/></svg></div>
     <h1>Report this email as phishing?</h1>
+    {% if rejected %}
+    <p id="report-status" role="status">Press the button to send your report to the security team.</p>
+    {% else %}
     <p id="report-status" role="status">Sending your report to the security team&hellip;</p>
+    {% endif %}
     <!-- The report is recorded ONLY when this form is POSTed. Email scanners fetch
          the link (GET) but don't run JavaScript or submit forms, so they never
          count as a report. With JS on, the form submits itself; otherwise the
@@ -36,6 +41,7 @@
       <button type="submit">Yes, report it</button>
     </form>
   </main>
+  {% if not rejected %}
   <script nonce="{{ csp_nonce(request) }}">
     (function () {
       try {
@@ -44,5 +50,6 @@
       } catch (e) { /* fall back to the button */ }
     })();
   </script>
+  {% endif %}
 </body>
 </html>

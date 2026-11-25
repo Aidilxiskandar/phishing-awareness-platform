@@ -89,3 +89,16 @@ def test_invalid_scanner_networks_blocks_startup(monkeypatch):
     from app.config import settings
     monkeypatch.setattr(settings, "scanner_networks", "not-a-cidr")
     assert any("SCANNER_NETWORKS" in p for p in settings.validate_for_runtime())
+
+
+def test_sandbox_running_js_is_not_upgraded_to_human(client, anon, session_factory):
+    """Regression: the JS confirm upgraded the click to HUMAN even when the
+    confirm itself was classified scanner (a headless detonation sandbox)."""
+    _, token = _make_target(client, session_factory)
+    headless = CHROME.replace("Chrome/", "HeadlessChrome/")
+    anon.get(f"/t/click/{token}", headers={"User-Agent": headless})
+    anon.post(f"/t/confirm/{token}", headers={"User-Agent": headless})
+    click = _events(session_factory, EventType.CLICK)[-1]
+    confirm = _events(session_factory, EventType.CONFIRM)[-1]
+    assert confirm.verdict == Verdict.SCANNER
+    assert click.verdict == Verdict.SCANNER

@@ -207,3 +207,17 @@ def test_scanner_report_events_do_not_lower_risk(session_factory):
                     verdict=Verdict.SCANNER))
         s.commit()
     assert _risk(session_factory, "p0@example.com")["score"] == 3
+
+
+def test_rejected_report_page_does_not_auto_submit_again(client, anon, session_factory):
+    """Regression: a rejected (automated) report re-rendered the auto-submitting
+    page, so a sandbox that runs JS POSTed in an endless loop."""
+    from tests.test_tracking import _make_target
+    _, token = _make_target(client, session_factory)
+    first = anon.get(f"/t/report/{token}")
+    assert "report-form\").submit()" in first.text            # normal page auto-submits
+    r = anon.post(f"/t/report/{token}", data={"js": "1"},
+                  headers={"User-Agent": "Mozilla/5.0 HeadlessChrome/131.0"})
+    assert r.status_code == 202
+    assert "report-form\").submit()" not in r.text            # rejection page doesn't
+    assert "Yes, report it" in r.text                          # a person can still press it

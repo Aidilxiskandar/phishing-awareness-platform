@@ -134,7 +134,12 @@ def track_confirm(request: Request, token: str):
                                  Event.type == EventType.CLICK)
             .order_by(Event.id.desc())
         ).first()
-        if last_click and last_click.verdict != Verdict.HUMAN:
+        # Only a confirm that is itself human may upgrade the click. A detonation
+        # sandbox runs the beacon JS too, but announces itself (headless UA,
+        # automation headers, scanner network), so its confirm is a scanner and
+        # must never turn the click into a human one.
+        if (result.verdict == Verdict.HUMAN.value and last_click
+                and last_click.verdict != Verdict.HUMAN):
             last_click.verdict = Verdict.HUMAN
             last_click.reason = "confirmed by landing-page JavaScript (interactive browser)"
             session.add(last_click)
@@ -178,5 +183,7 @@ def report_submit(request: Request, token: str, js: str = Form("0")):
     if outcome.counted or outcome.already:
         return _report_thanks(request, already=outcome.already)
     logger.info("report_rejected target=%s reason=%s", target.id, outcome.reason)
-    return templates.TemplateResponse(request, "report_confirm.html", {"token": token},
-                                      status_code=202)
+    # No auto-submit on the re-rendered page: an automated client that runs JS
+    # (a detonation sandbox) would otherwise POST in an endless loop.
+    return templates.TemplateResponse(request, "report_confirm.html",
+                                      {"token": token, "rejected": True}, status_code=202)

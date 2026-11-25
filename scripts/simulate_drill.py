@@ -25,12 +25,21 @@ from __future__ import annotations
 
 import argparse
 import random
+import re
 import sqlite3
 import sys
 import time
 from collections import Counter
 
 import httpx
+
+
+def _csrf(html: str) -> str:
+    m = re.search(r'name="csrf_token" value="([^"]+)"', html)
+    if not m:
+        sys.exit("No CSRF token on the page - is this a PhishGuard server?")
+    return m.group(1)
+
 
 # --- realistic client fingerprints -------------------------------------------
 
@@ -119,10 +128,16 @@ def main() -> int:
     origin = {"Origin": args.base}
 
     step("Admin login")
+    try:
+        page = admin.get("/login")
+    except httpx.ConnectError:
+        sys.exit(f"Can't reach {args.base}. Start the demo server first (see --help).")
+    origin["X-CSRF-Token"] = _csrf(page.text)
     r = admin.post("/login", data={"username": args.user, "password": args.password,
                                    "next": "/"}, headers=origin)
     if r.status_code != 200 or "/login" in str(r.url):
         sys.exit(f"Login failed ({r.status_code}). Is the demo server running at {args.base}?")
+    origin["X-CSRF-Token"] = _csrf(r.text)  # the token rotates on login
 
     step(f"Generating {args.staff} staff")
     admin.post("/users/seed", data={"count": str(args.staff)}, headers=origin).raise_for_status()
@@ -178,6 +193,10 @@ def main() -> int:
             hit("GET", f"/t/click/{t['token']}", ua, ip,
                 {"Sec-Purpose": "prefetch"} if random.random() < 0.2 else None)
             tally["scanner GET fetch"] += 1
+            # Gateways fetch every link, including "Report this email": the
+            # platform must not count these as reports.
+            hit("GET", f"/t/report/{t['token']}", ua, ip)
+            tally["scanner fetch of report link"] += 1
 
     wait = args.window + 2
     step(f"Waiting {wait}s so human activity falls outside the scanner window")
@@ -216,16 +235,18 @@ def main() -> int:
 
         # Some report without clicking; a few clickers realise and report after.
         if (not clicked and random.random() < p_report) or (clicked and random.random() < 0.15):
-            hit("GET", f"/t/report/{tok}", ua, ip)
+            hit("GET", f"/t/report/{tok}", ua, ip)           # confirmation page
+            pub.post(f"/t/report/{tok}", data={"js": "1"},     # its auto-submit
+                     headers={"User-Agent": ua, "X-Forwarded-For": ip})
             tally["reported"] += 1
 
         if clicked and modules and random.random() < BASE["quiz"]:
             m = random.choice(modules)
-            form = {"token": tok}
+            form = {}
             for q in questions[m["slug"]]:
                 right = random.random() < 0.75
                 form[f"q{q['id']}"] = str(q["correct_index"] if right else (q["correct_index"] + 1) % 4)
-            pub.post(f"/training/{m['slug']}/quiz", data=form,
+            pub.post(f"/t/training/{tok}/{m['slug']}/quiz", data=form,
                      headers={"User-Agent": ua, "X-Forwarded-For": ip, "Origin": args.base})
             tally["training quiz taken"] += 1
 

@@ -1,8 +1,11 @@
 """Login, logout and the health probe."""
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import (
+    FileResponse,
     HTMLResponse,
     JSONResponse,
     RedirectResponse,
@@ -60,6 +63,14 @@ def logout(request: Request):
         record_audit(request, "logout", "admin signed out")
     security.end_session(request)
     return RedirectResponse("/login", status_code=303)
+
+
+@router.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    """Browsers ask for /favicon.ico regardless of <link rel=icon>; serve the SVG."""
+    path = Path(__file__).resolve().parent.parent / "static" / "favicon.svg"
+    return FileResponse(path, media_type="image/svg+xml",
+                        headers={"Cache-Control": "public, max-age=86400"})
 
 
 @router.get("/health")
