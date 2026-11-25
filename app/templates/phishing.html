@@ -1,47 +1,45 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="card">
-  <h2>New campaign</h2>
+<section class="card" aria-labelledby="new-campaign-title">
+  <h2 id="new-campaign-title">New campaign</h2>
   <form method="post" action="/campaigns">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <div class="row">
-      <div><label>Campaign name</label>
-        <input type="text" name="name" placeholder="Q1 new-joiner drill" required></div>
-      <div><label>Drill template</label>
-        <select name="template_slug" id="tmpl-select"
-                style="background:#0b1220;border:1px solid var(--line);color:var(--ink);padding:8px 10px;border-radius:6px;width:100%">
+      <div><label for="c-name">Campaign name</label>
+        <input id="c-name" type="text" name="name" placeholder="Q1 new-joiner drill" required autocomplete="off"></div>
+      <div><label for="tmpl-select">Drill template</label>
+        <select name="template_slug" id="tmpl-select">
           <option value="">Custom (no template)</option>
           {% for t in email_templates %}
           <option value="{{ t.slug }}"
                   data-subject="{{ t.subject }}" data-from-name="{{ t.from_name }}"
                   data-from-email="{{ t.from_email }}" data-body="{{ t.body }}">
-            {{ t.name }} — {{ t.category }} ({{ t.difficulty }})</option>
+            {{ t.name }} · {{ t.category }} ({{ t.difficulty }})</option>
           {% endfor %}
         </select>
-        <a href="#" id="tmpl-preview" target="_blank"
-           style="display:none;font-size:12.5px;color:var(--blue);margin-top:6px">👁 Preview this template in a new tab</a>
+        <a href="#" id="tmpl-preview" target="_blank" rel="noopener"
+           style="display:none;font-size:13px;margin-top:6px">Preview this template in a new tab</a>
       </div>
     </div>
     <div class="row">
-      <div><label>Email subject</label>
-        <input type="text" name="subject" id="f-subject" value="Action required: verify your account" required></div>
-      <div><label>From name</label>
-        <input type="text" name="from_name" id="f-from-name" value="IT Security" required></div>
+      <div><label for="f-subject">Email subject</label>
+        <input type="text" name="subject" id="f-subject" value="Action required: verify your account" required autocomplete="off"></div>
+      <div><label for="f-from-name">From name</label>
+        <input type="text" name="from_name" id="f-from-name" value="IT Security" required autocomplete="off"></div>
     </div>
     <div class="row">
-      <div><label>From email</label>
-        <input type="email" name="from_email" id="f-from-email" value="it-security@example.com" required></div>
+      <div><label for="f-from-email">From email</label>
+        <input type="email" name="from_email" id="f-from-email" value="it-security@example.com" required autocomplete="off"></div>
     </div>
     <div>
-      <label>Email body <span style="color:var(--muted);font-weight:400">(leave blank to use the template or default body; you can customise it)</span></label>
+      <label for="f-body">Email body <span style="color:var(--muted);font-weight:400">(leave blank to use the template or default body; you can customise it)</span></label>
       <textarea name="body" id="f-body" rows="5"
-                style="width:100%;background:#0b1220;border:1px solid var(--line);color:var(--ink);padding:10px;border-radius:6px;font-family:inherit"
                 placeholder="Custom message body (plain text). Blank lines separate paragraphs. The tracked button is always added automatically."></textarea>
     </div>
     <button type="submit" style="margin-top:12px">Create campaign</button>
   </form>
-</div>
+</section>
 
 <script nonce="{{ csp_nonce(request) }}">
   (function () {
@@ -65,28 +63,35 @@
   })();
 </script>
 
-<div class="card">
-  <h2>Campaigns</h2>
+<section class="card" aria-labelledby="campaigns-title">
+  <h2 id="campaigns-title">Campaigns</h2>
   {% if not rows %}
     <p style="color:var(--muted)">No campaigns yet. Create one above.</p>
   {% else %}
+  <div class="table-wrap" role="region" aria-labelledby="campaigns-title" tabindex="0">
   <table>
-    <tr><th>Name</th><th>Status</th><th class="num">Targets</th><th class="num">Opens</th>
-        <th class="num">Human clicks</th><th class="num">Scanner clicks</th><th class="num">Reported</th><th></th></tr>
+    <caption class="sr-only">All campaigns with recipient and event counts</caption>
+    <thead>
+    <tr><th scope="col">Name</th><th scope="col">Status</th><th scope="col" class="num">Targets</th><th scope="col" class="num">Opens</th>
+        <th scope="col" class="num">Human clicks</th><th scope="col" class="num">Scanner clicks</th><th scope="col" class="num">Reported</th><th scope="col"><span class="sr-only">Actions</span></th></tr>
+    </thead>
+    <tbody>
     {% for r in rows %}
     <tr>
-      <td>{{ r.c.name }}</td>
+      <th scope="row">{{ r.c.name }}</th>
       <td><span class="pill">{{ r.c.status.value }}</span></td>
       <td class="num">{{ r.targets }}</td>
       <td class="num">{{ r.opens }}</td>
       <td class="num"{% if r.human_clicks %} style="color:var(--red)"{% endif %}>{{ r.human_clicks }}</td>
       <td class="num">{{ r.scanner_clicks }}</td>
       <td class="num">{{ r.reports }}</td>
-      <td class="num"><a href="/campaigns/{{ r.c.id }}">Open</a></td>
+      <td class="num"><a href="/campaigns/{{ r.c.id }}">Open<span class="sr-only"> campaign {{ r.c.name }}</span></a></td>
     </tr>
     {% endfor %}
+    </tbody>
   </table>
+  </div>
   {% endif %}
-</div>
+</section>
 
 {% endblock %}

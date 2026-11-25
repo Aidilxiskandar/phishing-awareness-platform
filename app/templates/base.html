@@ -1,9 +1,17 @@
+{% set titles = {
+  'dashboard': ['Dashboard','Overview of all phishing activity'],
+  'phishing':  ['Phishing','Campaigns and simulations'],
+  'training':  ['Training','Awareness modules and quizzes'],
+  'users':     ['Users','Staff directory and groups'],
+  'reports':   ['Reports','Risk scores and evidence log'],
+} -%}
+{% set pt = titles.get(tab, ['PhishGuard','Awareness platform']) -%}
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}PhishGuard — Awareness Platform{% endblock %}</title>
+<title>{% block title %}{{ pt[0] }}{% endblock %} · PhishGuard</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f5a524' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V5l7-3z'/><path d='M9 12l2 2 4-4'/></svg>">
 <style>
   /* Direction: exact, evidential, calm. An incident-response desk at night.
@@ -13,18 +21,20 @@
     color-scheme:dark;
     --bg:#141415; --bg2:#0f0f10; --surface:#19191b; --surface-2:#232325;
     --line:rgba(237,237,237,.08); --line-2:rgba(237,237,237,.14);
-    --ink:#ededed; --muted:#a1a1a6; --faint:#85858b;
+    --ink:#ededed; --muted:#a1a1a6; --faint:#909096; /* a11y: faint was #85858b (4.28:1 on surface-2) -> 4.94:1 */
     --accent:#f5a524; --accent-soft:rgba(245,165,36,.12);
     --amber:#f5a524; --amber-soft:rgba(245,165,36,.12);
     --green:#4cc38a; --green-soft:rgba(76,195,138,.12);
-    --red:#e5484d; --red-soft:rgba(229,72,77,.12);
-    --n1:#3a3a3e; --n2:#5c5c62; --n3:#85858b;
+    --red:#ef6368; --red-soft:rgba(239,99,104,.12); /* a11y: was #e5484d (4.49:1 on surface, 3.98:1 as a pill) -> 5.56:1 / 4.78:1 */
+    --field-line:#6e6e75; /* a11y: form-control boundary >= 3:1 against card surfaces */
+    --n1:#3a3a3e; --n2:#5c5c62; --n3:#909096;
     --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
     --ease:cubic-bezier(.22,1,.36,1);
     --radius:12px;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;}
+  html{scroll-padding-top:96px;} /* keep focused/anchored content clear of the sticky top bar (WCAG 2.4.11) */
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
        background:var(--bg); color:var(--ink); font-size:14px; line-height:20px;
        -webkit-font-smoothing:antialiased;}
@@ -32,6 +42,22 @@
     text-underline-offset:3px; transition:text-decoration-color 150ms var(--ease);}
   a:hover{text-decoration-color:var(--ink);}
   :focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
+  /* --- Accessibility utilities --- */
+  .sr-only{position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0 0 0 0); white-space:nowrap; border:0;}
+  .skip-link{position:absolute; left:16px; top:-48px; z-index:100; background:var(--ink); color:var(--bg);
+    padding:8px 16px; border-radius:8px; font-weight:500; text-decoration:none; transition:top 150ms var(--ease);}
+  .skip-link:focus{top:12px;}
+  main:focus{outline:none;}
+  fieldset.plain{border:0; margin:0; padding:0; min-width:0;}
+  legend.label{padding:0; font-size:12px; line-height:16px; color:var(--muted); margin-bottom:4px;}
+  .inline-field{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .inline-field label{margin:0; font-size:13px; line-height:20px;}
+  /* Horizontal scroll for wide tables on narrow screens; focusable so keyboard users can scroll it. */
+  .table-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%;}
+  .table-wrap:focus-visible{outline-offset:0;}
+  .scroll-box{overflow:auto; border:1px solid var(--line); border-radius:8px;}
 
   .app{display:grid; grid-template-columns:240px 1fr; min-height:100vh;}
   .app.staff{grid-template-columns:1fr;}
@@ -59,6 +85,7 @@
     font-size:12px; line-height:16px; color:var(--faint);}
   .side-foot b{color:var(--muted); font-weight:500;}
   .side-foot a{color:var(--muted);}
+  .topbar-logout{display:none; color:var(--muted); font-size:13px;}
 
   /* --- Main column --- */
   .main-col{display:flex; flex-direction:column; min-width:0;}
@@ -70,6 +97,7 @@
   .env-badge{display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:500;
     color:var(--amber); background:var(--amber-soft); border:1px solid rgba(245,165,36,.24);
     padding:4px 10px; border-radius:6px;}
+  .topbar-right{display:flex; align-items:center; gap:12px;}
   .env-badge .dot{width:6px; height:6px; border-radius:50%; background:var(--amber);}
   main{padding:32px; max-width:1440px; width:100%;}
   .app-foot{padding:16px 32px; border-top:1px solid var(--line); color:var(--faint); font-size:12px;}
@@ -97,6 +125,9 @@
   table{width:100%; border-collapse:collapse; font-size:13px;}
   th,td{text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:middle;}
   th{color:var(--faint); font-weight:500; font-size:12px; position:sticky; top:0; background:var(--surface);}
+  caption{text-align:left;}
+  tbody th{position:static; background:none; color:var(--ink); font-size:13px; font-weight:400;}
+  ul.legend,ul.risk-list{margin:0; padding:0; list-style:none;}
   td{line-height:20px;}
   tr:hover td{background:rgba(237,237,237,.025);}
   tr:last-child td{border-bottom:0;}
@@ -105,11 +136,14 @@
 
   /* --- Forms --- */
   input[type=text],input[type=email],input[type=number],input[type=password],select{
-    background:var(--surface-2); border:1px solid var(--line); color:var(--ink);
+    background:var(--surface-2); border:1px solid var(--field-line); color:var(--ink);
     height:36px; padding:0 12px; border-radius:8px; width:100%; font:inherit;
     transition:border-color 150ms var(--ease), box-shadow 150ms var(--ease);}
-  input::placeholder{color:var(--faint);}
-  input:focus,select:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);}
+  textarea{background:var(--surface-2); border:1px solid var(--field-line); color:var(--ink);
+    padding:10px 12px; border-radius:8px; width:100%; font:inherit; resize:vertical;}
+  input::placeholder,textarea::placeholder{color:var(--faint);}
+  input:focus,select:focus,textarea:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft);}
+  input[type=checkbox]:focus-visible,input[type=radio]:focus-visible{outline:2px solid var(--accent); outline-offset:2px; box-shadow:none;}
   input[type=checkbox],input[type=radio]{accent-color:var(--accent); width:16px; height:16px;
     margin:0; cursor:pointer; vertical-align:-3px;}
   label{display:block; font-size:12px; line-height:16px; color:var(--muted); margin-bottom:4px;}
@@ -138,7 +172,9 @@
     line-height:16px; padding:2px 6px; border:1px solid var(--line); border-radius:4px;
     color:var(--muted); white-space:nowrap;}
   .verdict::before{content:""; width:6px; height:6px; border-radius:50%; background:var(--n2);}
-  .verdict.human{color:var(--ink);} .verdict.human::before{background:var(--red);}
+  /* Verdict never relies on colour alone: the word is always printed and each verdict has its own
+     marker shape (human = filled square, scanner = filled dot, unknown = hollow ring). */
+  .verdict.human{color:var(--ink);} .verdict.human::before{background:var(--red); border-radius:1px;}
   .verdict.unknown{color:var(--faint);} .verdict.unknown::before{background:transparent; box-shadow:inset 0 0 0 1px var(--n2);}
   .verdict .t{color:var(--faint);}
 
@@ -166,7 +202,8 @@
   .chart-row.two{grid-template-columns:1.6fr 1fr;}
   .chart-row.even{grid-template-columns:1fr 1fr;}
   .chart-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:16px;}
-  .chart-head h3{margin:0; font-size:14px; line-height:20px; font-weight:500;}
+  .chart-head h2,.chart-head h3{margin:0; font-size:14px; line-height:20px; font-weight:500;}
+  .chart-head{flex-wrap:wrap;}
   .chart-head .sub{font-size:13px; color:var(--muted);}
   .chart-head .big{font-family:var(--mono); font-size:24px; font-weight:500; font-variant-numeric:tabular-nums;}
 
@@ -252,10 +289,34 @@
       overflow-x:auto; padding:12px 16px; gap:8px; border-right:0; border-bottom:1px solid var(--line);}
     .brand{padding:0 8px 0 0;} .brand .tag{display:none;}
     .nav{flex-direction:row;} .nav .label{display:none;} .side-foot{display:none;}
-    .nav a span{display:none;} .nav a{padding:0 10px;}
+    /* Icon-only nav on small screens: labels stay in the accessibility tree (not display:none). */
+    .nav a span{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;}
+    .nav a{padding:0 10px; height:40px; min-width:40px; justify-content:center;}
+    .topbar-logout{display:inline;}
     .row{grid-template-columns:1fr;}
-    main{padding:16px;} .topbar{padding:12px 16px;}
+    main{padding:16px;} .topbar{padding:12px 16px; flex-wrap:wrap;}
     .card{padding:16px;}
+    .page-title{font-size:20px; line-height:24px;}
+    .kpi .kpi-val{font-size:26px; line-height:30px;}
+    html{scroll-padding-top:120px;}
+  }
+  @media (max-width:420px){
+    .brand .name{display:none;}
+    .sidebar{padding:8px 12px;}
+    .kpi{padding:16px;}
+    .grid4{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .metric{font-size:24px; line-height:24px; padding:12px;}
+    .donut-wrap{justify-content:center;}
+    .split-legend{gap:16px;}
+  }
+  @media (pointer:coarse){
+    input[type=checkbox],input[type=radio]{width:20px; height:20px;}
+    .btn-sm{height:32px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms !important; animation-iteration-count:1 !important;
+      transition-duration:.01ms !important; scroll-behavior:auto !important;}
+    button:active,.btn:active{transform:none;}
   }
 </style>
 {% block head %}{% endblock %}
@@ -269,12 +330,13 @@
   'reports':   ['Reports','Risk scores and evidence log'],
 } %}
 {% set pt = ['Security awareness training','A short lesson and quiz from your security team'] if staff else titles.get(tab, ['PhishGuard','Awareness platform']) %}
+<a class="skip-link" href="#main">Skip to main content</a>
 <div class="app{{ ' staff' if staff }}">
   {% if not staff %}
-  <aside class="sidebar">
+  <aside class="sidebar" aria-label="Sidebar">
     <div class="brand">
       <div class="logo">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 2l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V5l7-3z"/><path d="M9 12l2 2 4-4"/>
         </svg>
       </div>
@@ -283,22 +345,22 @@
         <div class="tag">Awareness platform</div>
       </div>
     </div>
-    <nav class="nav">
-      <div class="label">Menu</div>
-      <a href="/" class="{{ 'active' if tab=='dashboard' }}">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+    <nav class="nav" aria-labelledby="nav-label">
+      <div class="label" id="nav-label">Menu</div>
+      <a href="/" class="{{ 'active' if tab=='dashboard' }}"{% if tab=='dashboard' %} aria-current="page"{% endif %}>
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
         <span>Dashboard</span></a>
-      <a href="/phishing" class="{{ 'active' if tab=='phishing' }}">
-        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+      <a href="/phishing" class="{{ 'active' if tab=='phishing' }}"{% if tab=='phishing' %} aria-current="page"{% endif %}>
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
         <span>Phishing</span></a>
-      <a href="/training" class="{{ 'active' if tab=='training' }}">
-        <svg viewBox="0 0 24 24"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1 3 3 6 3s6-2 6-3v-5"/></svg>
+      <a href="/training" class="{{ 'active' if tab=='training' }}"{% if tab=='training' %} aria-current="page"{% endif %}>
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1 3 3 6 3s6-2 6-3v-5"/></svg>
         <span>Training</span></a>
-      <a href="/users" class="{{ 'active' if tab=='users' }}">
-        <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 4.5a3 3 0 010 6M21 20c0-2.6-1.3-4.3-3.5-5"/></svg>
+      <a href="/users" class="{{ 'active' if tab=='users' }}"{% if tab=='users' %} aria-current="page"{% endif %}>
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 4.5a3 3 0 010 6M21 20c0-2.6-1.3-4.3-3.5-5"/></svg>
         <span>Users</span></a>
-      <a href="/reports" class="{{ 'active' if tab=='reports' }}">
-        <svg viewBox="0 0 24 24"><path d="M5 3h9l5 5v13a1 1 0 01-1 1H5a1 1 0 01-1-1V4a1 1 0 011-1z"/><path d="M14 3v5h5"/><path d="M8 13v4M12 11v6M16 14v3"/></svg>
+      <a href="/reports" class="{{ 'active' if tab=='reports' }}"{% if tab=='reports' %} aria-current="page"{% endif %}>
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M5 3h9l5 5v13a1 1 0 01-1 1H5a1 1 0 01-1-1V4a1 1 0 011-1z"/><path d="M14 3v5h5"/><path d="M8 13v4M12 11v6M16 14v3"/></svg>
         <span>Reports</span></a>
     </nav>
     <div class="side-foot">
@@ -319,10 +381,16 @@
         <p class="page-sub">{{ pt[1] }}</p>
       </div>
       <div class="topbar-right">
-        {% if dry_run %}<span class="env-badge"><span class="dot"></span>Dry run · no email sent</span>{% endif %}
+        {% if dry_run %}<span class="env-badge"><span class="dot" aria-hidden="true"></span>Dry run · no email sent</span>{% endif %}
+        {% if not staff %}
+        <form class="topbar-logout" method="post" action="/logout">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+          <button type="submit" class="linklike">Log out</button>
+        </form>
+        {% endif %}
       </div>
     </header>
-    <main>
+    <main id="main" tabindex="-1">
       {% block content %}{% endblock %}
     </main>
     <footer class="app-foot">PhishGuard · self-hosted phishing simulation and security awareness · authorised use only</footer>

@@ -2,6 +2,7 @@
 {% block content %}
 
 {# ---------- KPI row ---------- #}
+<h2 class="sr-only">Key figures</h2>
 <div class="kpi-row">
   <div class="kpi">
     <span class="kpi-label">Users</span>
@@ -21,11 +22,11 @@
     <div class="kpi-foot">
       {% if charts.delta is not none %}
         {% if charts.delta > 0.5 %}
-          <span class="delta up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 14l5-5 5 5"/></svg>{{ '%.0f' % charts.delta }} pts</span>
+          <span class="delta up"><span class="sr-only">Up </span><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 14l5-5 5 5"/></svg>{{ '%.0f' % charts.delta }} pts</span>
         {% elif charts.delta < -0.5 %}
-          <span class="delta down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 10l5 5 5-5"/></svg>{{ '%.0f' % (-charts.delta) }} pts</span>
+          <span class="delta down"><span class="sr-only">Down </span><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 10l5 5 5-5"/></svg>{{ '%.0f' % (-charts.delta) }} pts</span>
         {% else %}
-          <span class="delta flat">—</span>
+          <span class="delta flat"><span aria-hidden="true">—</span><span class="sr-only">No change</span></span>
         {% endif %}
         <span class="kpi-note">vs previous drill</span>
       {% else %}
@@ -52,7 +53,7 @@
   <div class="card">
     <div class="chart-head">
       <div>
-        <h3>Phish-prone rate over time</h3>
+        <h2 id="trend-title">Phish-prone rate over time</h2>
         <div class="sub">Human click rate per sent campaign</div>
       </div>
       {% if charts.trend_series %}
@@ -61,7 +62,7 @@
     </div>
     {% if charts.trend_series %}
     {% set tr = charts.trend %}
-    <svg class="trend-svg" viewBox="0 0 {{ tr.w }} {{ tr.h }}" preserveAspectRatio="none" role="img" aria-label="Phish-prone rate per campaign">
+    <svg class="trend-svg" viewBox="0 0 {{ tr.w }} {{ tr.h }}" preserveAspectRatio="none" role="img" aria-labelledby="trend-title" aria-describedby="trend-data">
       <defs>
         <linearGradient id="trendfill" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stop-color="var(--accent)" stop-opacity=".16"/>
@@ -80,42 +81,45 @@
         </circle>
       {% endfor %}
     </svg>
+    <ul class="sr-only" id="trend-data">
+      {% for p in tr.pts %}<li>{{ p.name }}: {{ '%.0f' % p.rate }}% ({{ p.clicks }} of {{ p.targets }} clicked)</li>{% endfor %}
+    </ul>
     {% else %}
     <div class="empty">
-      <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+      <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
       <div>No sent campaigns yet. Send a drill from <a href="/phishing">Phishing</a> to start the trend.</div>
     </div>
     {% endif %}
   </div>
 
   <div class="card">
-    <div class="chart-head"><div><h3>Risk distribution</h3><div class="sub">Of {{ charts.tested_count }} tested</div></div></div>
+    <div class="chart-head"><div><h2>Risk distribution</h2><div class="sub">Of {{ charts.tested_count }} tested</div></div></div>
     {% set d = charts.risk_donut %}
     {% if d.total %}
     <div class="donut-wrap">
       <div class="donut">
-        <svg viewBox="0 0 140 140">
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 140 140">
           <circle class="track" cx="70" cy="70" r="{{ d.r }}"/>
           {% for s in d.segments %}{% if s.value %}
           <circle class="seg" cx="70" cy="70" r="{{ d.r }}" stroke="{{ s.color }}"
             stroke-dasharray="{{ s.dash }} {{ s.gap }}" stroke-dashoffset="{{ s.offset }}"/>
           {% endif %}{% endfor %}
         </svg>
-        <div class="center"><b>{{ d.total }}</b><span>people</span></div>
+        <div class="center" aria-hidden="true"><b>{{ d.total }}</b><span>people</span></div>
       </div>
-      <div class="legend">
+      <ul class="legend" role="list">
         {% for s in d.segments %}
-        <div class="lrow">
-          <span class="swatch" style="background:{{ s.color }}"></span>
+        <li class="lrow">
+          <span class="swatch" aria-hidden="true" style="background:{{ s.color }}"></span>
           <span class="lname">{{ s.label }} risk</span>
           <span class="lval">{{ s.value }}</span>
           <span class="lpct">{{ s.pct }}%</span>
-        </div>
+        </li>
         {% endfor %}
-      </div>
+      </ul>
     </div>
     {% else %}
-    <div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>
+    <div class="empty"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>
       <div>No tested users yet.</div></div>
     {% endif %}
   </div>
@@ -124,7 +128,7 @@
 {# ---------- Funnel + accuracy ---------- #}
 <div class="chart-row even">
   <div class="card">
-    <div class="chart-head"><div><h3>Engagement funnel</h3><div class="sub">Distinct recipients per stage</div></div></div>
+    <div class="chart-head"><div><h2>Engagement funnel</h2><div class="sub">Distinct recipients per stage</div></div></div>
     {% set delivered = charts.funnel[0].value %}
     {% if delivered %}
     <div class="funnel">
@@ -135,36 +139,36 @@
           <span class="flabel">{{ f.label }}</span>
           <span class="fval">{{ f.value }}<span class="fpct">{{ '%.0f' % pct }}%</span></span>
         </div>
-        <div class="ftrack"><div class="ffill" style="width:{{ pct }}%;background:{{ f.color }}"></div></div>
+        <div class="ftrack" aria-hidden="true"><div class="ffill" style="width:{{ pct }}%;background:{{ f.color }}"></div></div>
       </div>
       {% endfor %}
     </div>
     {% else %}
-    <div class="empty"><svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>
+    <div class="empty"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>
       <div>No delivery data yet.</div></div>
     {% endif %}
   </div>
 
   <div class="card">
-    <div class="chart-head"><div><h3>Click accuracy</h3><div class="sub">Human clicks vs automated scanner fetches</div></div></div>
+    <div class="chart-head"><div><h2>Click accuracy</h2><div class="sub">Human clicks vs automated scanner fetches</div></div></div>
     {% set a = charts.accuracy %}
     {% if a.total_clicks %}
     {% set hp = a.human / a.total_clicks * 100 %}
-    <div class="splitbar">
+    <div class="splitbar" role="img" aria-label="Human {{ '%.0f' % hp }}%, scanner {{ '%.0f' % (100 - hp) }}% of raw link clicks">
       {% if a.human %}<div class="seg hu" style="width:{{ hp }}%">{{ '%.0f' % hp }}%</div>{% endif %}
       {% if a.scanner %}<div class="seg sc" style="width:{{ 100 - hp }}%">{{ '%.0f' % (100 - hp) }}%</div>{% endif %}
     </div>
     <div class="split-legend">
-      <div class="sl"><span class="dot" style="background:var(--red)"></span><span>Human <b>{{ a.human }}</b></span></div>
-      <div class="sl"><span class="dot" style="background:var(--n2)"></span><span>Scanner <b>{{ a.scanner }}</b></span></div>
-      <div class="sl"><span class="dot" style="background:var(--green)"></span><span>Reported <b>{{ a.reported }}</b></span></div>
+      <div class="sl"><span class="dot" aria-hidden="true" style="background:var(--red)"></span><span>Human <b>{{ a.human }}</b></span></div>
+      <div class="sl"><span class="dot" aria-hidden="true" style="background:var(--n2)"></span><span>Scanner <b>{{ a.scanner }}</b></span></div>
+      <div class="sl"><span class="dot" aria-hidden="true" style="background:var(--green)"></span><span>Reported <b>{{ a.reported }}</b></span></div>
     </div>
     <p style="color:var(--muted);font-size:12.5px;margin:16px 0 0;line-height:1.5">
       Of {{ a.total_clicks }} raw link clicks, <b style="color:var(--ink)">{{ a.scanner }}</b> were
       automated gateway/proxy fetches — separated out with logged IP, User-Agent and timing so they
       never inflate the human number.</p>
     {% else %}
-    <div class="empty"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 7-7"/><path d="M20 12v6a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9"/></svg>
+    <div class="empty"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M9 11l3 3 7-7"/><path d="M20 12v6a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9"/></svg>
       <div>No clicks recorded yet.</div></div>
     {% endif %}
   </div>
@@ -173,10 +177,13 @@
 {# ---------- Top at-risk + recent activity ---------- #}
 <div class="chart-row two">
   <div class="card">
-    <div class="chart-head"><div><h3>Recent activity</h3><div class="sub">Latest tracked interactions, newest first</div></div></div>
+    <div class="chart-head"><div><h2 id="recent-title">Recent activity</h2><div class="sub">Latest tracked interactions, newest first</div></div></div>
     {% if recent %}
+    <div class="table-wrap" role="region" aria-labelledby="recent-title" tabindex="0">
     <table>
-      <tr><th>When (UTC)</th><th>Recipient</th><th>Type</th><th>Verdict</th><th>Why</th></tr>
+      <caption class="sr-only">Recent tracked interactions, newest first</caption>
+      <thead><tr><th scope="col">When (UTC)</th><th scope="col">Recipient</th><th scope="col">Type</th><th scope="col">Verdict</th><th scope="col">Why</th></tr></thead>
+      <tbody>
       {% for e in recent %}
       <tr>
         <td class="ts">{{ e.created_at.strftime('%m-%d %H:%M:%S') }}</td>
@@ -186,32 +193,34 @@
         <td style="min-width:240px;color:var(--muted)">{{ e.reason }}</td>
       </tr>
       {% endfor %}
+      </tbody>
     </table>
+    </div>
     {% else %}
-    <div class="empty"><svg viewBox="0 0 24 24"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/></svg>
+    <div class="empty"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/></svg>
       <div>Nothing yet. Add <a href="/users">users</a>, create a <a href="/phishing">campaign</a>, and send a drill.</div>
     </div>
     {% endif %}
   </div>
 
   <div class="card">
-    <div class="chart-head"><div><h3>Top at-risk people</h3><div class="sub">Highest behaviour score</div></div></div>
+    <div class="chart-head"><div><h2>Top at-risk people</h2><div class="sub">Highest behaviour score</div></div></div>
     {% if charts.top_risk %}
-    <div class="risk-list">
+    <ul class="risk-list" role="list">
       {% for r in charts.top_risk %}
-      <div class="ri">
-        <div class="av">{{ (r.user.name or r.user.email)[:2]|upper }}</div>
+      <li class="ri">
+        <div class="av" aria-hidden="true">{{ (r.user.name or r.user.email)[:2]|upper }}</div>
         <div class="who">
           <div class="nm">{{ r.user.name or r.user.email }}</div>
           <div class="dp">{{ r.user.department or 'No department' }} · {{ r.human_clicks }} clicked · {{ r.reports }} reported</div>
         </div>
-        <span class="pill {{ 'bad' if r.band=='High' else 'warn' if r.band=='Medium' else '' }}">{{ r.band }}</span>
-        <span class="sc">{{ r.score }}</span>
-      </div>
+        <span class="pill {{ 'bad' if r.band=='High' else 'warn' if r.band=='Medium' else '' }}">{{ r.band }}<span class="sr-only"> risk</span></span>
+        <span class="sc"><span class="sr-only">score </span>{{ r.score }}</span>
+      </li>
       {% endfor %}
-    </div>
+    </ul>
     {% else %}
-    <div class="empty"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6"/></svg>
+    <div class="empty"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6"/></svg>
       <div>No at-risk users yet. Run a drill to populate scores.</div></div>
     {% endif %}
   </div>
