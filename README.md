@@ -1,3 +1,5 @@
+<p align="center"><img src="app/static/logo.svg" alt="PhishGuard logo: a blue envelope caught on a red fishing hook" width="120"></p>
+
 # PhishGuard
 
 **Self-hosted phishing simulation and security-awareness training that tells a

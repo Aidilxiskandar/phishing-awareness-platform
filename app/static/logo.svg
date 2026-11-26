@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="PhishGuard">
+  <rect x="22" y="44" width="88" height="62" rx="10" fill="#14213D"/>
+  <rect x="16" y="38" width="88" height="62" rx="10" fill="#2F5BEA" stroke="#14213D" stroke-width="4"/>
+  <polyline points="18,44 60,74 102,44" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M66 6 V60 a13 13 0 0 1 -26 0 V53" fill="none" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M40 53 L50 62" fill="none" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round"/>
+  <path d="M66 6 V60 a13 13 0 0 1 -26 0 V53" fill="none" stroke="#14213D" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M40 53 L50 62" fill="none" stroke="#14213D" stroke-width="16" stroke-linecap="round"/>
+  <path d="M66 6 V60 a13 13 0 0 1 -26 0 V53" fill="none" stroke="#C9343A" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M40 53 L50 62" fill="none" stroke="#C9343A" stroke-width="8" stroke-linecap="round"/>
+</svg>

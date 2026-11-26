@@ -76,8 +76,8 @@
   .sidebar{background:var(--bg2); border-right:1px solid var(--line); padding:20px 16px;
            display:flex; flex-direction:column; position:sticky; top:0; height:100vh;}
   .brand{display:flex; align-items:center; gap:10px; padding:4px 8px 24px;}
-  .brand .logo{width:28px; height:28px; flex:0 0 auto; display:grid; place-items:center;}
-  .brand .logo svg{width:24px; height:24px; stroke:var(--accent);}
+  .brand .logo{width:46px; height:46px; flex:0 0 auto; display:grid; place-items:center; padding:3px; background:#fff; border:2px solid #fff; border-radius:12px; box-shadow:3px 3px 0 #000;}
+  .brand .logo img{width:100%; height:100%; display:block;}
   .brand .name{font-weight:600; font-size:16px; line-height:20px;}
   .brand .tag{font-size:12px; line-height:16px; color:var(--faint);}
   .nav{display:flex; flex-direction:column; gap:2px;}
@@ -386,11 +386,7 @@
   {% if not staff %}
   <aside class="sidebar" aria-label="Sidebar">
     <div class="brand">
-      <div class="logo">
-        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V5l7-3z"/><path d="M9 12l2 2 4-4"/>
-        </svg>
-      </div>
+      <div class="logo"><img src="/static/logo.svg" alt="" width="40" height="40"></div>
       <div>
         <div class="name">PhishGuard</div>
         <div class="tag">Awareness platform</div>

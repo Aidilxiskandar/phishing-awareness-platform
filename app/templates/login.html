@@ -11,8 +11,7 @@
   <form class="card" method="post" action="/login">
     <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <div class="brand">
-      <div class="logo"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V5l7-3z"/><path d="M9 12l2 2 4-4"/></svg></div>
+      <div class="logo"><img src="/static/logo.svg" alt="" width="44" height="44"></div>
       <div><div class="name">PhishGuard</div><div class="tag">Awareness platform</div></div>
     </div>
     <h1>Sign in</h1>
