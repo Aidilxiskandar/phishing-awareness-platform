@@ -183,7 +183,7 @@ try {
   await submit(`const f=document.querySelector('form[action$="/quiz"]');
     const names=[...new Set([...f.querySelectorAll('input[type=radio]')].map(r=>r.name))];
     names.forEach(n=>f.querySelector('input[name="'+n+'"]').checked=true); f.submit()`);
-  expect(/Your result/.test(await text()), "quiz result not shown");
+  expect(/your result/i.test(await text()), "quiz result not shown");  // headings are uppercased by CSS
 
   begin("admin pages render");
   for (const p of ["/", "/phishing", "/training", "/users", "/reports", `/reports${campaignPath}`]) {
