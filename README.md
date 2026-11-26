@@ -10,7 +10,9 @@ real human click apart from an automated scanner click, with evidence.**
 ![Coverage 95%](https://img.shields.io/badge/coverage-95%25-brightgreen)
 ![License MIT](https://img.shields.io/badge/license-MIT-lightgrey)
 
-![PhishGuard dashboard](docs/screenshots/dashboard.png)
+![PhishGuard in 30 seconds: dashboard, a drill, human vs scanner clicks, reporting, the executive report and the staff lesson](docs/demo.gif)
+
+<sub>30-second walkthrough on fictional demo data · [MP4 version](docs/demo.mp4)</sub>
 
 ## The problem it solves
 
