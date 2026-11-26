@@ -74,9 +74,19 @@ can read.
   that anonymises a person everywhere while keeping campaign totals correct
 - Audit log of admin actions
 
-| Campaign detail | Trend and group breakdown | Mobile |
-| --- | --- | --- |
-| ![Campaign](docs/screenshots/campaign.png) | ![Reports](docs/screenshots/reports.png) | ![Mobile](docs/screenshots/mobile-dashboard.png) |
+<p>
+  <img src="docs/screenshots/governance-consent-erasure.png" width="49%" alt="Users page: the Consented column, the ethics-gate note that only consenting users can be sent a drill, and an Erase button on every row">
+  <img src="docs/screenshots/governance-audit-log.png" width="49%" alt="Admin activity audit trail: sign-ins, campaign create and send, and staff imports with timestamp, admin and IP">
+</p>
+<p><sub>Left: consent gate and per-person right-to-erasure. Right: the audit trail of every admin action.</sub></p>
+
+**More screens**
+
+<p>
+  <img src="docs/screenshots/campaign.png" width="49%" alt="Campaign detail: opens, human clicks, scanner clicks and reporting metrics">
+  <img src="docs/screenshots/reports.png" width="49%" alt="Reports: trend across campaigns and breakdown by staff group">
+</p>
+<p align="center"><img src="docs/screenshots/mobile-dashboard.png" width="260" alt="The dashboard on a phone"><br><sub>Works on phones too.</sub></p>
 
 ## Security
 
