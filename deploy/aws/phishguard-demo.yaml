@@ -1,0 +1,186 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  PhishGuard public demo on a single EC2 instance. DEMO_MODE (no email can be
+  sent), Caddy automatic HTTPS on a free <ip>.sslip.io hostname, no SSH port
+  (admin via SSM Session Manager), nightly demo reset. Deploy with
+  deploy/aws/deploy.sh; remove everything with deploy/aws/teardown.sh.
+
+Parameters:
+  CodeBucket:
+    Type: String
+    Description: Private S3 bucket holding the code tarball (created by deploy.sh).
+  CodeKey:
+    Type: String
+    Default: phishguard.tar.gz
+  InstanceType:
+    Type: String
+    Default: t4g.micro
+    AllowedValues: [t4g.micro, t4g.small]
+    Description: ARM (Graviton). micro = 1 GB RAM (+1 GB swap), plenty for the demo.
+  DemoPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    Description: Shared demo login password (shown publicly on the sign-in page).
+  AlertEmail:
+    Type: String
+    Default: ""
+    Description: Optional. Email for a monthly AWS Budgets cost alert.
+  MonthlyBudgetUsd:
+    Type: Number
+    Default: 15
+  UbuntuAmi:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id
+
+Conditions:
+  HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+
+Resources:
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: PhishGuard demo - HTTP/HTTPS only (no SSH; use SSM)
+      SecurityGroupIngress:
+        - {IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0, Description: ACME + redirect to HTTPS}
+        - {IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: HTTPS}
+        - {IpProtocol: udp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: HTTP/3}
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: {Service: ec2.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: read-code-tarball
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub arn:aws:s3:::${CodeBucket}/${CodeKey}
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref InstanceRole]
+
+  DemoIp:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags: [{Key: Name, Value: phishguard-demo}]
+
+  DemoInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref UbuntuAmi
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref InstanceProfile
+      SecurityGroupIds: [!GetAtt WebSecurityGroup.GroupId]
+      MetadataOptions: {HttpTokens: required, HttpEndpoint: enabled}
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs: {VolumeSize: 12, VolumeType: gp3, Encrypted: true, DeleteOnTermination: true}
+      Tags: [{Key: Name, Value: phishguard-demo}]
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            set -euxo pipefail
+            exec > >(tee -a /var/log/phishguard-bootstrap.log) 2>&1
+            export DEBIAN_FRONTEND=noninteractive
+
+            # 1 GB swap: lets the image build comfortably on a 1 GB instance.
+            if [ ! -f /swapfile ]; then
+              fallocate -l 1G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+              echo '/swapfile none swap sw 0 0' >> /etc/fstab
+            fi
+
+            apt-get update -y
+            apt-get install -y ca-certificates curl unattended-upgrades
+            command -v docker || curl -fsSL https://get.docker.com | sh
+            command -v aws || snap install aws-cli --classic
+
+            mkdir -p /opt/phishguard /opt/phishguard-state
+            # Deploy script: fetch the code tarball, (re)build and start.
+            cat > /usr/local/bin/phishguard-redeploy <<'SCRIPT'
+            #!/bin/bash
+            set -euo pipefail
+            cd /opt/phishguard
+            for i in $(seq 1 60); do
+              aws s3 cp "s3://${CodeBucket}/${CodeKey}" /tmp/phishguard.tar.gz --region "${AWS::Region}" && break
+              echo "waiting for code tarball ($i)"; sleep 10
+            done
+            find /opt/phishguard -mindepth 1 -maxdepth 1 ! -name .env -exec rm -rf {} +
+            tar -xzf /tmp/phishguard.tar.gz -C /opt/phishguard
+            cp /opt/phishguard-state/.env /opt/phishguard/.env
+            docker compose -f docker-compose.prod.yml -f docker-compose.demo.yml up -d --build --remove-orphans
+            docker image prune -f
+            SCRIPT
+            chmod 755 /usr/local/bin/phishguard-redeploy
+
+            # Nightly demo reset (wipe + replay three drills).
+            cat > /usr/local/bin/phishguard-demo-reset <<'SCRIPT'
+            #!/bin/bash
+            cd /opt/phishguard && docker compose -f docker-compose.prod.yml -f docker-compose.demo.yml exec -T web python scripts/demo_reset.py
+            SCRIPT
+            chmod 755 /usr/local/bin/phishguard-demo-reset
+            echo '30 19 * * * root /usr/local/bin/phishguard-demo-reset >> /var/log/phishguard-reset.log 2>&1' > /etc/cron.d/phishguard-demo
+
+            # Config. SECRET_KEY is generated here once and never leaves the instance.
+            if [ ! -f /opt/phishguard-state/.env ]; then
+              umask 077
+              cat > /opt/phishguard-state/.env <<ENV
+            ENV=prod
+            DOMAIN=${Hostname}
+            BASE_URL=https://${Hostname}
+            SECRET_KEY=$(openssl rand -base64 48 | tr -d '\n=+/')
+            ADMIN_USERNAME=admin
+            ADMIN_PASSWORD=${DemoPassword}
+            RETENTION_DAYS=30
+            ENV
+            fi
+
+            /usr/local/bin/phishguard-redeploy
+            for i in $(seq 1 60); do
+              docker compose -f /opt/phishguard/docker-compose.prod.yml ps web | grep -q healthy && break
+              sleep 5
+            done
+            /usr/local/bin/phishguard-demo-reset
+          - Hostname: !Join ["", [!Join ["-", !Split [".", !Ref DemoIp]], ".sslip.io"]]
+
+  DemoIpAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt DemoIp.AllocationId
+      InstanceId: !Ref DemoInstance
+
+  CostBudget:
+    Type: AWS::Budgets::Budget
+    Condition: HasAlertEmail
+    Properties:
+      Budget:
+        BudgetName: phishguard-demo-monthly
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit: {Amount: !Ref MonthlyBudgetUsd, Unit: USD}
+      NotificationsWithSubscribers:
+        - Notification: {NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: 80}
+          Subscribers: [{SubscriptionType: EMAIL, Address: !Ref AlertEmail}]
+        - Notification: {NotificationType: FORECASTED, ComparisonOperator: GREATER_THAN, Threshold: 100}
+          Subscribers: [{SubscriptionType: EMAIL, Address: !Ref AlertEmail}]
+
+Outputs:
+  DemoUrl:
+    Value: !Join ["", ["https://", !Join ["-", !Split [".", !Ref DemoIp]], ".sslip.io"]]
+  InstanceId:
+    Value: !Ref DemoInstance
+  PublicIp:
+    Value: !Ref DemoIp

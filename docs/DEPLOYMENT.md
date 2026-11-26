@@ -120,3 +120,42 @@ plenty for drills against a few thousand staff. Login throttling and session
 revocation are held in process memory by design. If you need several workers or
 hosts, move to Postgres (`DATABASE_URL=postgresql+psycopg://...`) and a shared
 store for those two pieces of state first.
+
+## Public demo on AWS (one command)
+
+`deploy/aws/` stands up a public, read-it-yourself demo on a single small EC2
+instance, for portfolios and evaluations. It runs with **`DEMO_MODE`**:
+
+- **No email can ever be sent.** Dry-run is forced, and the app refuses to start
+  if SMTP is configured.
+- The sign-in page shows the shared demo login, and every page carries a
+  "Public demo" badge.
+- Login throttling is per IP, so nobody can lock the shared account.
+- Data is fictional and **resets nightly** (`scripts/demo_reset.py` replays
+  three drills through the drill simulator).
+
+```bash
+aws login                                   # or any configured AWS credentials
+DEMO_PASSWORD='pick-a-demo-password' ALERT_EMAIL=you@example.com deploy/aws/deploy.sh
+deploy/aws/redeploy.sh                      # ship the current commit
+deploy/aws/teardown.sh                      # delete everything (stops all charges)
+```
+
+What the CloudFormation stack (`deploy/aws/phishguard-demo.yaml`) creates:
+
+| Resource | Notes |
+| --- | --- |
+| EC2 `t4g.micro` (ARM, Ubuntu 24.04) | Encrypted gp3 disk, IMDSv2 only, 1 GB swap |
+| Elastic IP | Gives a stable free hostname: `<ip-with-dashes>.sslip.io`, so Caddy can get a real TLS certificate without buying a domain |
+| Security group | Inbound 80/443 only. **No SSH port**: admin access is through SSM Session Manager (`aws ssm start-session --target <instance-id>`) |
+| IAM role | SSM core plus read access to the one code tarball |
+| AWS Budgets alert (optional) | Emails at 80% of the monthly budget and when the forecast exceeds it |
+
+The code reaches the instance as a `git archive` of the current commit in a
+private S3 bucket, so no repository credentials live on the server. The
+instance generates its own `SECRET_KEY` on first boot. First boot takes about
+10 minutes: it installs Docker, builds the image, obtains the certificate and
+seeds the demo data.
+
+Approximate cost: about US$10 a month (instance, public IPv4 and disk), which
+AWS Free Tier credits cover.
