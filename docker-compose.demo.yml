@@ -1,0 +1,16 @@
+# Public demo overlay for docker-compose.prod.yml. Use BOTH files:
+#
+#   docker compose -f docker-compose.prod.yml -f docker-compose.demo.yml up -d --build
+#   docker compose -f docker-compose.prod.yml -f docker-compose.demo.yml exec -T web python scripts/demo_reset.py
+#
+# DEMO_MODE forces dry-run (the app refuses to start if SMTP is configured),
+# shows the demo login on the sign-in page and keys login throttling by IP only.
+# Leave SMTP_* unset in .env. Reset nightly from the host's cron (see
+# docs/DEPLOYMENT.md "Public demo").
+services:
+  web:
+    environment:
+      DEMO_MODE: "true"
+      # Caddy, plus loopback so the in-container drill simulator's synthetic
+      # client IPs show up in the evidence log (loopback is unreachable from outside).
+      TRUSTED_PROXIES: 172.30.53.10,127.0.0.1

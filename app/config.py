@@ -13,6 +13,12 @@ _DEV_SECRET = _secrets.token_urlsafe(32)
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
+    # Public demo: forces dry-run (no email can ever be sent), shows the demo
+    # login on the sign-in page and a "Public demo" badge, and keys login
+    # throttling by IP only so nobody can lock the shared account. Refuses to
+    # start if SMTP is configured. See docs/DEPLOYMENT.md "Public demo".
+    demo_mode: bool = False
+
     # Environment: dev | staging | prod. Drives fail-fast checks, cookie security,
     # and whether the API docs are exposed.
     env: str = "dev"
@@ -63,8 +69,8 @@ class Settings(BaseSettings):
 
     @property
     def dry_run(self) -> bool:
-        """No SMTP host configured -> print emails to console instead of sending."""
-        return not self.smtp_host.strip()
+        """No SMTP host configured (or demo mode) -> print emails instead of sending."""
+        return self.demo_mode or not self.smtp_host.strip()
 
     @property
     def effective_secret_key(self) -> str:
@@ -97,12 +103,15 @@ class Settings(BaseSettings):
             self.scanner_network_list  # noqa: B018 - parse to validate
         except ValueError as exc:
             problems.append(f"SCANNER_NETWORKS is invalid: {exc}")
+        if self.demo_mode and self.smtp_host.strip():
+            problems.append("DEMO_MODE must not have SMTP configured: a public demo "
+                            "must never be able to send email")
         if self.is_prod:
             if not self.secret_key:
                 problems.append("SECRET_KEY must be set in production")
             if not self.admin_password:
                 problems.append("ADMIN_PASSWORD must be set in production")
-            if self.dry_run:
+            if self.dry_run and not self.demo_mode:
                 problems.append(
                     "SMTP is not configured but ENV=prod — campaigns would silently no-op"
                 )

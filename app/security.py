@@ -103,7 +103,11 @@ class LoginThrottle:
     """In-process brute-force limiter keyed by client IP and by username."""
 
     def __init__(self, max_failures: int = LOGIN_MAX_FAILURES,
-                 window: int = LOGIN_WINDOW, lockout: int = LOGIN_LOCKOUT) -> None:
+                 window: int = LOGIN_WINDOW, lockout: int = LOGIN_LOCKOUT,
+                 per_user: bool = True) -> None:
+        # per_user=False (public demo): throttle by IP only, so failed guesses
+        # can't lock the shared demo account for everyone.
+        self.per_user = per_user
         self.max_failures = max_failures
         self.window = window
         self.lockout = lockout
@@ -111,10 +115,12 @@ class LoginThrottle:
         self._locked_until: dict[str, float] = {}
         self._lock = threading.Lock()
 
-    @staticmethod
-    def _keys(ip: str, username: str) -> list[str]:
+    def _keys(self, ip: str, username: str) -> list[str]:
         # Usernames are case-folded and length-capped so the dict stays bounded.
-        return [f"ip:{ip}", f"user:{username.strip().casefold()[:128]}"]
+        keys = [f"ip:{ip}"]
+        if self.per_user:
+            keys.append(f"user:{username.strip().casefold()[:128]}")
+        return keys
 
     def retry_after(self, ip: str, username: str, now: float | None = None) -> int:
         """Seconds until a login attempt is allowed again (0 = allowed now)."""
@@ -152,7 +158,7 @@ class LoginThrottle:
             self._locked_until.clear()
 
 
-login_throttle = LoginThrottle()
+login_throttle = LoginThrottle(per_user=not settings.demo_mode)
 
 
 # --- session lifecycle -------------------------------------------------------

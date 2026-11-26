@@ -23,10 +23,17 @@ from app.web import client_ip, logger, record_audit, templates
 router = APIRouter()
 
 
+def _demo_login() -> dict | None:
+    """The shared demo credential, shown on the sign-in page in DEMO_MODE only."""
+    if not settings.demo_mode:
+        return None
+    return {"user": settings.admin_username, "password": settings.effective_admin_password}
+
+
 @router.get("/login", response_class=HTMLResponse)
 def login_form(request: Request, next: str = "/"):
     return templates.TemplateResponse(request, "login.html", {
-        "next": security.safe_next(next), "error": None,
+        "next": security.safe_next(next), "error": None, "demo_login": _demo_login(),
         "tab": None, "dry_run": settings.dry_run,
     })
 
@@ -39,6 +46,7 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
     def _fail(message: str, status: int, headers: dict | None = None):
         return templates.TemplateResponse(request, "login.html", {
             "next": security.safe_next(next), "error": message, "tab": None,
+            "demo_login": _demo_login(),
             "dry_run": settings.dry_run,
         }, status_code=status, headers=headers)
 

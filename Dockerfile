@@ -24,6 +24,8 @@ COPY --from=builder /venv /venv
 COPY app ./app
 COPY alembic ./alembic
 COPY alembic.ini ./
+# Drill simulator + demo reset (used by DEMO_MODE deployments).
+COPY scripts/simulate_drill.py scripts/demo_reset.py ./scripts/
 USER app
 EXPOSE 8000
 # Probe the health endpoint with stdlib (no curl in slim image).

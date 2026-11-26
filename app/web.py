@@ -8,6 +8,7 @@ from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
 from app import security
+from app.config import settings
 from app.database import get_session
 from app.models import (
     AuditLog,
@@ -61,3 +62,4 @@ def humandur(seconds: float | None) -> str:
 
 templates.env.filters["humandur"] = humandur
 security.install_template_globals(templates.env)
+templates.env.globals["demo_mode"] = settings.demo_mode

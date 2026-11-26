@@ -382,7 +382,8 @@
         <p class="page-sub">{{ pt[1] }}</p>
       </div>
       <div class="topbar-right">
-        {% if dry_run %}<span class="env-badge"><span class="dot" aria-hidden="true"></span>Dry run · no email sent</span>{% endif %}
+        {% if demo_mode %}<span class="env-badge"><span class="dot" aria-hidden="true"></span>Public demo · no email is ever sent · resets nightly</span>
+        {% elif dry_run %}<span class="env-badge"><span class="dot" aria-hidden="true"></span>Dry run · no email sent</span>{% endif %}
         {% if not staff %}
         <form class="topbar-logout" method="post" action="/logout">
           <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
